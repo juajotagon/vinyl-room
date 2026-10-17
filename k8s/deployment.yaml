@@ -1,0 +1,82 @@
+# One replica on purpose: the pod both serves the site and writes the daily
+# pick to a ReadWriteOnce volume. Recreate avoids two pods fighting over it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vinyl-room
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vinyl-room
+  template:
+    metadata:
+      labels:
+        app: vinyl-room
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # the image's "node" user
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: vinyl-room
+          image: vinyl-room
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: TZ
+              value: Europe/Madrid
+            - name: PICK_TIME
+              value: "06:00"
+            # Optional: Claude writes the daily description when this exists.
+            #   kubectl -n vinyl-room create secret generic vinyl-room-secrets \
+            #     --from-literal=ANTHROPIC_API_KEY=sk-ant-...
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vinyl-room-secrets
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            - name: DISCOGS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vinyl-room-secrets
+                  key: DISCOGS_TOKEN
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vinyl-room-data
+        - name: tmp
+          emptyDir: {}

@@ -1,52 +1,76 @@
 # Vinyl Room
 
-A small WebGL scene (Vite + Three.js): a record in its sleeve turns slowly on
-a dark stage. Click it (or press Space/Enter) and the gatefold opens, showing
-the tracklist inside, while the vinyl slides out and spins up to 33⅓ rpm.
-Click again to put it away. On tall screens the sleeve opens upward instead
-of sideways. Open `/#open` to start with the sleeve already open.
+A fresh album pick every day, shown on a spinning record (Vite + Three.js).
+Click the record (or press Space/Enter) and the gatefold opens: the
+tracklist is inside and the vinyl slides out and spins at 33⅓ rpm. Use ← / →
+or the archive list to browse earlier days; each day has its own link
+(`/#2026-10-18`). On tall screens the sleeve opens upward.
 
-## Run it
+## How the daily pick works
+
+Once a day the server builds a pool of fresh recommendations from three
+official feeds (see `docs/recommendation-sources.md` for why these):
+
+| Source | What counts | Weight |
+|---|---|---|
+| Bandcamp Daily, Album of the Day | every pick | 3 |
+| Stereogum, Album of the Week | every pick | 3 |
+| The Needle Drop (YouTube) | reviews scored 7/10 or more | 1 to 4 |
+
+Mentions from the last 14 days are grouped by album and scored, fading with
+age, so an album that two sources liked this week wins. Albums already in
+the archive are skipped. The winner gets its cover, year and tracklist from
+MusicBrainz / Cover Art Archive (Discogs too if `DISCOGS_TOKEN` is set), and
+a short description from Claude if `ANTHROPIC_API_KEY` is set. Without a key
+the description is built from the sources' own one-line summaries.
+
+Data lives in `DATA_DIR`:
+
+- `archive.json`: every day, newest first
+- `picks/<date>.json`: the full pick (sources, links, description, tracklist)
+- `covers/<date>.jpg`
+
+## Run it locally
 
 ```bash
 npm install
-npm run fetch-art   # downloads cover art into public/art/
+npm run pick -- --backfill 7   # fill the last week into public/data/
 npm run dev
 ```
 
-## Album art
+Other picker options: `--date 2026-10-14`, `--force` (redo a day).
 
-`npm run fetch-art` writes `public/art/{front,back,label}.jpg` and
-`manifest.json`. It tries, in order:
-
-1. **Discogs**, if `DISCOGS_TOKEN` is set (personal token from
-   discogs.com → Settings → Developers). The token only lives in the script,
-   never in the browser bundle.
-2. **Cover Art Archive** (via MusicBrainz), no token needed.
-
-If `public/art/` is empty, the page loads the cover straight from Cover Art
-Archive in the browser, and if that fails it draws a placeholder sleeve.
-Pick another album with `ARTIST="..." ALBUM="..." npm run fetch-art`.
-
-The art is gitignored; it is downloaded again on every Docker build.
-
-## Container
+To run it like production (serves `dist/`, picks daily at `PICK_TIME`):
 
 ```bash
-docker build -t vinyl-room .
-docker run --rm -p 8080:8080 vinyl-room
+npm run build
+DATA_DIR=public/data TZ=Europe/Madrid npm start
 ```
 
-Multi-stage: Node builds the static site, then `nginx-unprivileged` serves it
-on port 8080 as a non-root user. `/healthz` returns `ok` for k8s probes. To
-use Discogs during the build:
+## Container and Kubernetes
 
 ```bash
-DISCOGS_TOKEN=xxxx docker build --secret id=discogs_token,env=DISCOGS_TOKEN -t vinyl-room .
+docker build -t vinyl-room:0.2.0 .
+docker run --rm -p 8080:8080 -v vinyl-data:/data -e TZ=Europe/Madrid vinyl-room:0.2.0
 ```
+
+One Node process serves the site and runs the daily pick, so a single
+Deployment with one volume is all it needs. `k8s/` has a kustomization
+(namespace, PVC, Deployment, Service) with a non-root, read-only root
+filesystem setup. It has no Ingress, so point your own ingress or gateway at
+the `vinyl-room` Service. Optional secrets:
+
+```bash
+kubectl -n vinyl-room create secret generic vinyl-room-secrets \
+  --from-literal=ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Set the image in `k8s/kustomization.yaml`, then `kubectl apply -k k8s/`.
 
 ## Layout
 
-- `src/main.js` scene, gatefold animation, camera framing, input
-- `src/art.js` art loading and canvas textures (tracklist, disc, panels)
-- `scripts/fetch-art.mjs` Discogs / Cover Art Archive downloader
+- `src/main.js` scene, gatefold animation, camera framing, day navigation
+- `src/ui.js` info panel and archive list
+- `src/art.js` loads picks and draws the canvas textures
+- `scripts/picker/` sources, scoring, enrichment, description, CLI
+- `server/index.mjs` static server, `/healthz` and the daily schedule

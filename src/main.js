@@ -1,13 +1,17 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
-  loadAlbum,
+  loadArchive,
+  loadPick,
+  loadFallbackAlbum,
+  placeholderAlbum,
   frontCanvas,
   backCanvas,
   tracklistCanvas,
   innerPanelCanvas,
   discCanvas,
 } from './art.js';
+import { createPanel } from './ui.js';
 import './style.css';
 
 // Sleeve is W x W units; a 12" record is ~96% of its sleeve.
@@ -19,7 +23,6 @@ const DISC_T = 0.02;
 const canvasEl = document.getElementById('scene');
 const titleEl = document.getElementById('title');
 const hintEl = document.getElementById('hint');
-const creditEl = document.getElementById('credit');
 
 const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -116,21 +119,23 @@ stage.add(discPivot);
 
 const clickable = [flap, base, disc];
 let tracklistTex = null;
+let disposables = [];
 
 function applyArt(album) {
-  tracklistTex = tex(tracklistCanvas(album));
+  // Free the previous album's textures and materials when switching days.
+  disposables.forEach((d) => d.dispose());
+  disposables = [];
+  const track = (d) => (disposables.push(d), d);
+  const mat = (canvas, roughness) => track(printed(track(tex(canvas)), roughness));
+
+  tracklistTex = track(tex(tracklistCanvas(album)));
   tracklistTex.center.set(0.5, 0.5);
-  flap.material = [cardboard, cardboard, cardboard, cardboard, printed(tex(frontCanvas(album))), printed(tracklistTex, 0.8)];
-  base.material = [cardboard, cardboard, cardboard, cardboard, printed(tex(innerPanelCanvas(album)), 0.8), printed(tex(backCanvas(album)))];
-  discMat.map = tex(discCanvas(album));
+  flap.material = [cardboard, cardboard, cardboard, cardboard, mat(frontCanvas(album)), track(printed(tracklistTex, 0.8))];
+  base.material = [cardboard, cardboard, cardboard, cardboard, mat(innerPanelCanvas(album), 0.8), mat(backCanvas(album))];
+  discMat.map = track(tex(discCanvas(album)));
   discMat.needsUpdate = true;
 
   titleEl.textContent = `${album.artist} — ${album.album}`;
-  const src = {
-    coverartarchive: ['Cover Art Archive', album.sourceUrl],
-    discogs: ['Discogs', album.sourceUrl],
-  }[album.source];
-  creditEl.innerHTML = src ? `Artwork via <a href="${src[1]}" target="_blank" rel="noopener">${src[0]}</a>` : 'Placeholder artwork';
 }
 
 // ---------------------------------------------------------------------------
@@ -179,10 +184,14 @@ window.addEventListener('keydown', (e) => {
 const parallax = new THREE.Vector2();
 const camTarget = new THREE.Vector3();
 
+// Part of the viewport is covered by the info panel (left column on wide
+// screens, bottom sheet on phones). `free` is the share left for the record.
+const free = { x: 1, y: 1 };
+
 function fitDistance(width, height) {
-  const vFov = THREE.MathUtils.degToRad(camera.fov);
-  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
-  return Math.max(height / 2 / Math.tan(vFov / 2), width / 2 / Math.tan(hFov / 2));
+  const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+  const tanH = tanV * camera.aspect;
+  return Math.max(height / 2 / (tanV * free.y), width / 2 / (tanH * free.x));
 }
 
 let portrait = false;
@@ -192,8 +201,14 @@ function resize() {
   const h = window.innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
-  camera.updateProjectionMatrix();
   portrait = camera.aspect < 0.85;
+  // Keep the record centred in the space the panel leaves free.
+  const panelW = !portrait && w >= 900 ? 432 : 0;
+  const sheetH = portrait ? Math.min(h * 0.3, 260) : 0;
+  free.x = (w - panelW) / w;
+  free.y = (h - sheetH) / h;
+  camera.setViewOffset(w, h, -panelW / 2, sheetH / 2, w, h);
+  camera.updateProjectionMatrix();
   // Tall layout drops the disc below the sleeve, so the floor goes lower too.
   floor.position.y = portrait ? -W * 1.6 : -W * 0.62;
 }
@@ -230,7 +245,7 @@ function frame(now) {
   // Shift so the open spread is centred.
   const bob = Math.sin(t * 0.9) * 0.05 * (1 - pTurn);
   stage.position.x = portrait ? 0 : W * 0.15 * pTurn;
-  stage.position.y = bob + (portrait ? -W * 0.22 * pTurn : 0);
+  stage.position.y = bob + (portrait ? -W * 0.3 * pTurn : 0);
 
   // Flap swings toward the camera and lays open (left, or up on tall screens).
   const swing = -Math.PI * 0.97 * pFlap;
@@ -255,7 +270,7 @@ function frame(now) {
 
   // Camera: frame the closed record or the whole open spread.
   const closedD = portrait ? fitDistance(W * 1.5, W * 1.6) : fitDistance(W * 1.9, W * 1.6);
-  const openD = portrait ? fitDistance(W * 1.3, W * 3.4) : fitDistance(W * 3.4, W * 1.5);
+  const openD = portrait ? fitDistance(W * 1.3, W * 3.9) : fitDistance(W * 3.4, W * 1.5);
   const d = THREE.MathUtils.lerp(closedD, openD, ease(progress));
   scene.fog.near = d + 4;
   scene.fog.far = d + 22;
@@ -267,10 +282,51 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+// ---------------------------------------------------------------------------
+// Days: today's pick by default, any archived day via #YYYY-MM-DD.
+// ---------------------------------------------------------------------------
+const panel = createPanel({ onNavigate: (date) => (location.hash = date) });
+let archive = [];
+let showing = null;
+
+async function showDate(date) {
+  if (!archive.length) return;
+  const entry = archive.find((e) => e.date === date) ?? archive[0];
+  if (entry.date === showing) return;
+  showing = entry.date;
+  try {
+    const pick = await loadPick(entry.date);
+    if (showing !== entry.date) return; // a newer navigation won
+    applyArt(pick);
+    panel.render(pick, archive);
+  } catch (err) {
+    console.warn(`[pick] ${entry.date}: ${err.message}`);
+  }
+}
+
+const dateFromHash = () => location.hash.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+window.addEventListener('hashchange', () => showDate(dateFromHash()));
+window.addEventListener('keydown', (e) => {
+  if (!showing || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  const i = archive.findIndex((a) => a.date === showing);
+  // Archive is newest first: left goes back in time.
+  const next = archive[i + (e.key === 'ArrowLeft' ? 1 : -1)];
+  if (next) location.hash = next.date;
+});
+
+async function boot() {
+  archive = await loadArchive();
+  if (archive.length) return showDate(dateFromHash());
+  // No picks yet (fresh dev checkout): show Demon Days.
+  const album = await loadFallbackAlbum();
+  applyArt(album);
+  panel.render(album, []);
+}
+
 camera.position.set(0, 0.3, 12);
-if (location.hash === '#open') toggle();
-applyArt({ artist: 'Gorillaz', album: 'Demon Days', source: 'placeholder', tracklist: [] });
+if (new URLSearchParams(location.search).has('open')) toggle();
+applyArt(placeholderAlbum());
 requestAnimationFrame(frame);
-loadAlbum().then(applyArt);
+boot();
 
 if (import.meta.env.DEV) Object.assign(window, { __vinyl: { scene, camera, renderer, stage, toggle } });

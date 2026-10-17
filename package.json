@@ -1,18 +1,20 @@
 {
   "name": "vinyl-room",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Spinning vinyl WebGL scene (Three.js + Vite)",
   "scripts": {
     "dev": "vite",
-    "fetch-art": "node scripts/fetch-art.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pick": "node scripts/picker/pick.mjs",
+    "start": "node server/index.mjs"
   },
   "type": "module",
   "dependencies": {
-    "three": "^0.186.1"
+    "@anthropic-ai/sdk": "^0.135.0"
   },
   "devDependencies": {
+    "three": "^0.186.1",
     "vite": "^8.3.4"
   },
   "private": true

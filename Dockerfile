@@ -1,18 +1,24 @@
-# --- build ---------------------------------------------------------------
+# --- build the static site ------------------------------------------------
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-# Download the album art at build time. Pass a Discogs token as a build
-# secret to prefer Discogs; without it, Cover Art Archive is used.
-#   docker build --secret id=discogs_token,env=DISCOGS_TOKEN .
-RUN --mount=type=secret,id=discogs_token \
-    DISCOGS_TOKEN="$(cat /run/secrets/discogs_token 2>/dev/null || true)" npm run fetch-art \
- && npm run build
+RUN npm run build && rm -rf dist/data
 
-# --- serve ---------------------------------------------------------------
-FROM nginxinc/nginx-unprivileged:1.29-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+# --- runtime: one small Node server that serves the site and picks daily ---
+FROM node:24-alpine
+# tzdata so TZ (e.g. Europe/Madrid) decides when "today" starts.
+RUN apk add --no-cache tzdata
+WORKDIR /app
+ENV NODE_ENV=production PORT=8080 DIST_DIR=/app/dist DATA_DIR=/data PICK_TIME=06:00
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=build /app/dist ./dist
+COPY server ./server
+COPY scripts/picker ./scripts/picker
+RUN mkdir -p /data && chown node:node /data
+USER node
+VOLUME /data
 EXPOSE 8080
+CMD ["node", "server/index.mjs"]

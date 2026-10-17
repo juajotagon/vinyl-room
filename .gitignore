@@ -1,5 +1,5 @@
 node_modules/
 dist/
 .claude/
-# Album art is downloaded by `npm run fetch-art` (and in the Docker build).
-public/art/
+# Daily picks written by `npm run pick` in dev.
+public/data/

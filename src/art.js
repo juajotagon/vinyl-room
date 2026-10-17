@@ -1,12 +1,13 @@
-// Loads album art and draws every texture the record needs onto canvases.
+// Loads the day's album and draws every texture the record needs onto canvases.
 //
-// Art comes from public/art/manifest.json (written by `npm run fetch-art`).
-// If that is missing we ask Cover Art Archive directly from the browser,
-// and if that fails too we draw a placeholder sleeve.
+// Picks come from data/archive.json and data/picks/<date>.json, written daily
+// by scripts/picker. Without them (e.g. a fresh dev checkout) we fall back to
+// Demon Days straight from Cover Art Archive, then to a placeholder sleeve.
 
 const DEFAULT_ALBUM = {
   artist: 'Gorillaz',
   album: 'Demon Days',
+  year: '2005',
   // MusicBrainz release used for the in-browser fallback.
   release: '2968b394-7ca8-3b6a-a3ec-a0239adb01c9',
   tracklist: [
@@ -15,6 +16,8 @@ const DEFAULT_ALBUM = {
     'All Alone', 'White Light', 'DARE', 'Fire Coming Out of the Monkey’s Head',
     'Don’t Get Lost in Heaven', 'Demon Days',
   ],
+  sources: [],
+  links: {},
 };
 
 const SIZE = 1024;
@@ -31,35 +34,36 @@ function loadImage(src) {
 
 const tryImage = (src) => (src ? loadImage(src).catch(() => null) : Promise.resolve(null));
 
-async function fromManifest() {
-  const res = await fetch('art/manifest.json', { cache: 'no-cache' });
-  if (!res.ok) throw new Error('no manifest');
-  const m = await res.json();
-  const [front, back, label] = await Promise.all([tryImage(m.front), tryImage(m.back), tryImage(m.label)]);
-  if (!front) throw new Error('manifest front image missing');
-  return { ...m, front, back, label };
+async function getJson(url) {
+  const res = await fetch(url, { cache: 'no-cache' });
+  if (!res.ok || !res.headers.get('content-type')?.includes('json')) throw new Error(`${res.status} ${url}`);
+  return res.json();
+}
+
+// Newest first. Empty when there is no archive yet.
+export async function loadArchive() {
+  try {
+    return await getJson('data/archive.json');
+  } catch {
+    return [];
+  }
+}
+
+export async function loadPick(date) {
+  const pick = await getJson(`data/picks/${date}.json`);
+  const front = await tryImage(pick.cover && `data/${pick.cover}`);
+  return { ...pick, front, back: null, label: null };
 }
 
 // The CAA JSON index redirects to archive.org without CORS headers, but the
 // image shortcuts (front-500, back-500) are CORS-enabled, so use those.
-async function fromCoverArtArchive() {
+export async function loadFallbackAlbum() {
   const base = `https://coverartarchive.org/release/${DEFAULT_ALBUM.release}`;
   const [front, back] = await Promise.all([tryImage(`${base}/front-500`), tryImage(`${base}/back-500`)]);
-  if (!front) throw new Error('CAA front image missing');
-  const sourceUrl = `https://musicbrainz.org/release/${DEFAULT_ALBUM.release}`;
-  return { ...DEFAULT_ALBUM, source: 'coverartarchive', sourceUrl, front, back, label: null };
+  return { ...DEFAULT_ALBUM, front, back, label: null };
 }
 
-export async function loadAlbum() {
-  for (const attempt of [fromManifest, fromCoverArtArchive]) {
-    try {
-      return await attempt();
-    } catch (err) {
-      console.info(`[art] ${attempt.name}: ${err.message}`);
-    }
-  }
-  return { ...DEFAULT_ALBUM, source: 'placeholder', front: null, back: null, label: null };
-}
+export const placeholderAlbum = () => ({ ...DEFAULT_ALBUM, front: null, back: null, label: null });
 
 function canvas(w = SIZE, h = SIZE) {
   const c = document.createElement('canvas');
@@ -123,12 +127,26 @@ export function backCanvas(album) {
   if (album.back) {
     drawCover(ctx, album.back);
   } else {
+    // No back scan: a dark, blurred take on the front with the details on top.
     ctx.fillStyle = '#1b1b1d';
     ctx.fillRect(0, 0, SIZE, SIZE);
-    ctx.fillStyle = '#d8d6cf';
+    if (album.front) {
+      ctx.save();
+      ctx.filter = 'blur(28px) brightness(0.35) saturate(1.2)';
+      drawCover(ctx, album.front);
+      ctx.restore();
+    }
+    ctx.fillStyle = '#ecebe6';
     ctx.textAlign = 'center';
-    ctx.font = `600 ${SIZE * 0.05}px system-ui, sans-serif`;
-    ctx.fillText(album.artist.toUpperCase(), SIZE / 2, SIZE / 2);
+    ctx.font = `700 ${SIZE * 0.06}px system-ui, sans-serif`;
+    ctx.fillText(album.album.toUpperCase(), SIZE / 2, SIZE * 0.47, SIZE * 0.86);
+    ctx.font = `400 ${SIZE * 0.035}px system-ui, sans-serif`;
+    ctx.fillText(album.artist.toUpperCase(), SIZE / 2, SIZE * 0.54, SIZE * 0.86);
+    if (album.date) {
+      ctx.fillStyle = '#a8a69e';
+      ctx.font = `400 ${SIZE * 0.025}px system-ui, sans-serif`;
+      ctx.fillText(`ALBUM OF THE DAY · ${album.date}`, SIZE / 2, SIZE * 0.9);
+    }
   }
   return c;
 }
