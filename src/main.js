@@ -5,6 +5,7 @@ import {
   loadPick,
   loadFallbackAlbum,
   placeholderAlbum,
+  paletteFrom,
   frontCanvas,
   backCanvas,
   tracklistCanvas,
@@ -21,10 +22,10 @@ const DISC_R = W * 0.48;
 const DISC_T = 0.02;
 
 const canvasEl = document.getElementById('scene');
-const titleEl = document.getElementById('title');
 const hintEl = document.getElementById('hint');
 
-const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: true });
+renderer.setClearColor(0x000000, 0); // the CSS gradient shows through
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -32,8 +33,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#0d0d0f');
-scene.fog = new THREE.Fog('#0d0d0f', 14, 30);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -43,20 +42,19 @@ const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
 
 // Lights: warm key from the top left, cool rim from behind.
 const key = new THREE.SpotLight('#ffe2b8', 60, 30, Math.PI / 5, 0.6, 1.4);
-key.position.set(-4, 7, 7);
+key.position.set(-2.5, 10, 6);
 key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
 key.shadow.bias = -0.0004;
+key.shadow.radius = 6;
 scene.add(key);
 const rim = new THREE.DirectionalLight('#7fa8ff', 1.4);
 rim.position.set(5, 3, -6);
 scene.add(rim);
 scene.add(new THREE.HemisphereLight('#3a3a48', '#0a0a0a', 0.6));
 
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(60, 60),
-  new THREE.MeshStandardMaterial({ color: '#141416', roughness: 0.85 }),
-);
+// Invisible floor that only catches the record's shadow.
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: 0.22 }));
 floor.rotation.x = -Math.PI / 2;
 floor.position.y = -W * 0.62;
 floor.receiveShadow = true;
@@ -135,7 +133,9 @@ function applyArt(album) {
   discMat.map = track(tex(discCanvas(album)));
   discMat.needsUpdate = true;
 
-  titleEl.textContent = `${album.artist} — ${album.album}`;
+  document.title = `${album.artist} – ${album.album} :: vinyl room`;
+  // The page gradient takes its colours from the cover (animated in CSS).
+  paletteFrom(album.front).forEach((c, i) => document.documentElement.style.setProperty(`--g${i + 1}`, c));
 }
 
 // ---------------------------------------------------------------------------
@@ -152,7 +152,7 @@ const phase = (t, a, b) => THREE.MathUtils.clamp((t - a) / (b - a), 0, 1);
 
 function toggle() {
   open = !open;
-  hintEl.textContent = open ? 'Click again to put it away' : 'Click the record to open the sleeve';
+  hintEl.textContent = open ? 'click again to put it away' : 'click the record to open the sleeve';
 }
 
 const raycaster = new THREE.Raycaster();
@@ -203,11 +203,12 @@ function resize() {
   camera.aspect = w / h;
   portrait = camera.aspect < 0.85;
   // Keep the record centred in the space the panel leaves free.
-  const panelW = !portrait && w >= 900 ? 432 : 0;
-  const sheetH = portrait ? Math.min(h * 0.3, 260) : 0;
+  const panelW = !portrait && w >= 900 ? 432 : 0; // .window width + margins
+  const sheetH = portrait ? Math.max(h * 0.3, 210) + 70 : 0; // bottom sheet + status bar
+  const topH = 40; // top bar
   free.x = (w - panelW) / w;
-  free.y = (h - sheetH) / h;
-  camera.setViewOffset(w, h, -panelW / 2, sheetH / 2, w, h);
+  free.y = (h - sheetH - topH) / h;
+  camera.setViewOffset(w, h, -panelW / 2, (sheetH - topH) / 2, w, h);
   camera.updateProjectionMatrix();
   // Tall layout drops the disc below the sleeve, so the floor goes lower too.
   floor.position.y = portrait ? -W * 1.6 : -W * 0.62;
@@ -270,10 +271,8 @@ function frame(now) {
 
   // Camera: frame the closed record or the whole open spread.
   const closedD = portrait ? fitDistance(W * 1.5, W * 1.6) : fitDistance(W * 1.9, W * 1.6);
-  const openD = portrait ? fitDistance(W * 1.3, W * 3.9) : fitDistance(W * 3.4, W * 1.5);
+  const openD = portrait ? fitDistance(W * 1.3, W * 3.9) : fitDistance(W * 3.1, W * 1.5);
   const d = THREE.MathUtils.lerp(closedD, openD, ease(progress));
-  scene.fog.near = d + 4;
-  scene.fog.far = d + 22;
   camTarget.set(parallax.x * 0.6, 0.25 + parallax.y * 0.35, d);
   camera.position.lerp(camTarget, 1 - Math.exp(-4 * dt));
   camera.lookAt(0, 0, 0);

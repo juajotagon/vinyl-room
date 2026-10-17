@@ -263,3 +263,45 @@ export function discCanvas(album) {
   ctx.fill();
   return c;
 }
+
+// Three colours for the page gradient, taken from the cover: a light tint of
+// its most vivid colour (top), a second vivid colour (middle) and a deep shade
+// (bottom). Falls back to an early-2000s blue.
+export function paletteFrom(img) {
+  const fallback = ['#9cc3ea', '#2f6db5', '#0b1e3f'];
+  if (!img) return fallback;
+  const [, ctx] = canvas(24, 24);
+  ctx.drawImage(img, 0, 0, 24, 24);
+  const { data } = ctx.getImageData(0, 0, 24, 24);
+  const px = [];
+  for (let i = 0; i < data.length; i += 4) px.push(toHsl(data[i], data[i + 1], data[i + 2]));
+  const vivid = (p) => p.s * (1 - Math.abs(p.l - 0.5) * 2);
+  px.sort((a, b) => vivid(b) - vivid(a));
+  const first = px[0];
+  if (!first || vivid(first) < 0.08) return fallback; // greyscale cover
+  // Second colour: the most vivid one with a clearly different hue.
+  const hueGap = (a, b) => Math.min(Math.abs(a.h - b.h), 360 - Math.abs(a.h - b.h));
+  const second = px.find((p) => hueGap(p, first) > 40 && vivid(p) > 0.08) ?? { ...first, h: (first.h + 35) % 360 };
+  return [
+    hsl(first.h, Math.min(first.s, 0.75), 0.78),
+    hsl(second.h, Math.min(Math.max(second.s, 0.45), 0.85), 0.5),
+    hsl(first.h, Math.min(first.s, 0.6), 0.14),
+  ];
+}
+
+function toHsl(r, g, b) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (!d) return { h: 0, s: 0, l };
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  return { h, s, l };
+}
+
+const hsl = (h, s, l) => `hsl(${h.toFixed(0)} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%)`;

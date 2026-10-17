@@ -3,17 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vinyl Room</title>
+    <title>vinyl room</title>
     <meta name="description" content="A fresh album pick every day, on a spinning record." />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💿</text></svg>" />
   </head>
   <body>
-    <canvas id="scene"></canvas>
-    <header class="hud">
-      <h1 id="title">Loading record…</h1>
-      <p id="hint">Click the record to open the sleeve</p>
+    <canvas id="scene" aria-label="Spinning record. Click to open the sleeve."></canvas>
+
+    <header class="topbar">
+      <a class="brand" href="#" data-today>vinyl_room<span class="cursor">_</span></a>
+      <span class="tagline">:: one fresh album a day</span>
+      <nav class="topnav" aria-label="Main">
+        [<a href="#" data-today>today</a>]
+        [<a href="#" data-view="archive">archive</a>]
+        [<a href="#" data-view="about">about</a>]
+      </nav>
     </header>
-    <aside class="panel" id="panel" hidden></aside>
+
+    <aside class="window" id="panel" hidden></aside>
+
+    <footer class="statusbar">
+      <span class="led" aria-hidden="true"></span>
+      <span id="hint">click the record to open the sleeve</span>
+      <span class="sep">|</span>
+      <span class="keys">[←][→] browse days · [space] open</span>
+      <span class="sep">|</span>
+      <span class="ticker" aria-hidden="true"><span id="ticker"></span></span>
+    </footer>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

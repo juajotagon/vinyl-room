@@ -1,5 +1,5 @@
-// The info panel: date navigation, description, who recommended it, links,
-// and the archive of past days.
+// The "now_spinning.txt" window: a plain-text page about the day's pick, the
+// archive of past days, and a short about page. Plus the status-bar ticker.
 
 const el = (tag, { dataset, ...props } = {}, ...children) => {
   const node = Object.assign(document.createElement(tag), props);
@@ -8,95 +8,138 @@ const el = (tag, { dataset, ...props } = {}, ...children) => {
   return node;
 };
 
-const LINK_NAMES = { bandcamp: 'Listen on Bandcamp', musicbrainz: 'MusicBrainz', discogs: 'Discogs' };
+const LINK_NAMES = { bandcamp: 'listen on bandcamp', musicbrainz: 'musicbrainz entry', discogs: 'discogs entry' };
+const FILE_NAMES = { pick: 'now_spinning.txt', archive: 'archive.txt', about: 'readme.txt' };
 
-function formatDate(date) {
-  return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
+const rule = () => el('div', { className: 'rule', textContent: '='.repeat(80), ariaHidden: 'true' });
 
 export function createPanel({ onNavigate }) {
   const root = document.getElementById('panel');
-  let archiveOpen = false;
+  const ticker = document.getElementById('ticker');
+  let view = 'pick';
   let current = null;
   let archive = [];
 
-  root.addEventListener('click', (e) => {
-    const nav = e.target.closest('[data-date]');
-    if (nav) {
-      archiveOpen = false;
-      onNavigate(nav.dataset.date);
-    } else if (e.target.closest('[data-action="archive"]')) {
-      archiveOpen = !archiveOpen;
+  // One click handler for the window, the top bar and anything else with
+  // data-date / data-view / data-today.
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-date], [data-view], [data-today], [data-action]');
+    if (!t) return;
+    if (t.dataset.date) {
+      e.preventDefault();
+      view = 'pick';
+      onNavigate(t.dataset.date);
       draw();
-    } else if (e.target.closest('[data-action="expand"]')) {
+    } else if (t.dataset.today !== undefined) {
+      e.preventDefault();
+      view = 'pick';
+      if (archive[0]) onNavigate(archive[0].date);
+      draw();
+    } else if (t.dataset.view) {
+      e.preventDefault();
+      view = view === t.dataset.view ? 'pick' : t.dataset.view;
+      draw();
+    } else if (t.dataset.action === 'expand') {
       root.classList.toggle('expanded');
     }
   });
 
-  function navButton(label, date, title) {
-    return el('button', { className: 'nav', textContent: label, title, disabled: !date, ...(date ? { dataset: { date } } : {}) });
-  }
-
-  function draw() {
-    const pick = current;
-    const i = archive.findIndex((a) => a.date === pick.date);
-    const older = i >= 0 ? archive[i + 1]?.date : null;
-    const newer = i > 0 ? archive[i - 1]?.date : null;
-
-    const head = pick.date
-      ? el(
-          'div',
-          { className: 'datebar' },
-          navButton('‹', older, 'Previous day (←)'),
-          el('span', { className: 'date', textContent: i === 0 ? `Today · ${formatDate(pick.date)}` : formatDate(pick.date) }),
-          navButton('›', newer, 'Next day (→)'),
-          el('button', { className: 'archive-btn', textContent: archiveOpen ? 'Close' : `Archive (${archive.length})`, dataset: { action: 'archive' } }),
-        )
-      : el('div', { className: 'datebar' }, el('span', { className: 'date', textContent: 'No picks yet · showing a classic' }));
-
-    const body = archiveOpen ? archiveList() : details(pick);
-    root.replaceChildren(head, body);
-  }
-
-  function details(pick) {
-    const sources = (pick.sources ?? []).map((s) =>
-      el('a', { className: 'chip', href: s.url, target: '_blank', rel: 'noopener', textContent: `${s.name} · ${s.label}` }),
-    );
-    const links = Object.entries(pick.links ?? {}).map(([k, href]) =>
-      el('a', { className: `link ${k}`, href, target: '_blank', rel: 'noopener', textContent: LINK_NAMES[k] ?? k }),
-    );
+  function titlebar() {
+    const date = current?.date ? ` - ${current.date}` : '';
     return el(
       'div',
-      { className: 'details' },
-      el('h2', {}, el('span', { className: 'album', textContent: pick.album }), el('span', { className: 'artist', textContent: ` ${pick.artist}${pick.year ? ` · ${pick.year}` : ''}` })),
-      pick.description && el('p', { className: 'desc', textContent: pick.description, dataset: { action: 'expand' }, title: 'Tap to expand' }),
-      sources.length > 0 && el('div', { className: 'chips' }, el('span', { className: 'muted', textContent: 'Picked by' }), ...sources),
-      links.length > 0 && el('div', { className: 'links' }, ...links),
+      { className: 'titlebar' },
+      el('span', { className: 'name', textContent: `${FILE_NAMES[view]}${view === 'pick' ? date : ''}` }),
+      el('button', { textContent: '_', title: 'Expand / shrink', dataset: { action: 'expand' } }),
+      el('button', { textContent: 'x', title: 'Back to today', dataset: { today: '' } }),
     );
   }
 
-  function archiveList() {
+  function menubar() {
+    const i = archive.findIndex((a) => a.date === current?.date);
+    const older = i >= 0 ? archive[i + 1]?.date : null;
+    const newer = i > 0 ? archive[i - 1]?.date : null;
+    const btn = (label, date, title) =>
+      el('button', { textContent: label, title, disabled: !date, ...(date ? { dataset: { date } } : {}) });
     return el(
-      'ol',
-      { className: 'archive' },
-      ...archive.map((a) =>
-        el(
-          'li',
-          {},
+      'div',
+      { className: 'menubar' },
+      btn('< prev', older, 'Previous day (←)'),
+      btn('next >', newer, 'Next day (→)'),
+      el('button', { textContent: 'archive', dataset: { view: 'archive' } }),
+      el('span', { className: 'spacer' }),
+      el('span', { className: 'date', textContent: i === 0 ? 'today' : current?.date ? `day ${archive.length - i} of ${archive.length}` : '' }),
+    );
+  }
+
+  function pickDoc(pick) {
+    const facts = [
+      ['ARTIST', pick.artist],
+      ['ALBUM', pick.album],
+      ['YEAR', pick.year],
+      ['PICKED', pick.date],
+      ['TRACKS', pick.tracklist?.length || null],
+    ].filter(([, v]) => v);
+    const sources = (pick.sources ?? []).map((s) =>
+      el('li', {}, el('a', { href: s.url, target: '_blank', rel: 'noopener', textContent: `${s.name.toLowerCase()} (${s.label.toLowerCase()})` })),
+    );
+    const links = Object.entries(pick.links ?? {}).map(([k, href]) =>
+      el('li', {}, el('a', { href, target: '_blank', rel: 'noopener', textContent: LINK_NAMES[k] ?? k })),
+    );
+    return [
+      el('h1', { textContent: `${pick.artist} - ${pick.album}` }),
+      rule(),
+      el('dl', { className: 'facts' }, ...facts.map(([k, v]) => el('div', {}, el('dt', { textContent: k }), el('dd', { textContent: v })))),
+      pick.description && el('p', { textContent: pick.description }),
+      sources.length > 0 && el('div', { textContent: 'RECOMMENDED BY:' }),
+      sources.length > 0 && el('ul', { className: 'cmds' }, ...sources),
+      links.length > 0 && el('div', { textContent: 'LINKS:' }),
+      links.length > 0 && el('ul', { className: 'cmds' }, ...links),
+      !pick.date && el('p', { textContent: 'No daily picks yet, so here is a classic. Run `npm run pick` to start the archive.' }),
+    ];
+  }
+
+  function archiveDoc() {
+    return [
+      el('h1', { textContent: `archive - ${archive.length} day${archive.length === 1 ? '' : 's'}` }),
+      rule(),
+      el(
+        'ol',
+        { className: 'archive' },
+        ...archive.map((a) =>
           el(
-            'button',
-            { className: a.date === current.date ? 'current' : '', dataset: { date: a.date } },
-            a.cover ? el('img', { src: `data/${a.cover}`, alt: '', loading: 'lazy', width: 40, height: 40 }) : el('span', { className: 'nocover' }),
-            el('span', { className: 'meta' }, el('strong', { textContent: a.album }), el('span', { textContent: `${a.artist} · ${formatDate(a.date)}` })),
+            'li',
+            {},
+            el(
+              'a',
+              { href: `#${a.date}`, className: a.date === current?.date ? 'current' : '', dataset: { date: a.date } },
+              el('span', { textContent: a.date }),
+              el('span', { className: 't', textContent: `${a.artist} - ${a.album}` }),
+            ),
           ),
         ),
       ),
-    );
+    ];
+  }
+
+  function aboutDoc() {
+    return [
+      el('h1', { textContent: 'readme' }),
+      rule(),
+      el('p', {
+        textContent:
+          'Every morning this page picks one fresh album from what Bandcamp Daily, Stereogum and The Needle Drop recommended in the last two weeks. Albums more than one of them liked win, and nothing repeats.',
+      }),
+      el('p', { textContent: 'Click the record to open the sleeve. Use the arrow keys or the archive to visit earlier days. Every day has its own link.' }),
+      el('p', { textContent: 'Covers and tracklists come from MusicBrainz and the Cover Art Archive.' }),
+    ];
+  }
+
+  function draw() {
+    if (!current) return;
+    const body = view === 'archive' ? archiveDoc() : view === 'about' ? aboutDoc() : pickDoc(current);
+    const doc = el('div', { className: 'doc', tabIndex: 0 }, ...body.filter(Boolean));
+    root.replaceChildren(titlebar(), menubar(), doc);
   }
 
   return {
@@ -104,8 +147,13 @@ export function createPanel({ onNavigate }) {
       current = pick;
       archive = list;
       root.hidden = false;
-      root.classList.remove('expanded');
+      // Re-trigger the settle animation for the new day.
+      root.style.animation = 'none';
+      void root.offsetWidth;
+      root.style.animation = '';
       draw();
+      const tracks = pick.tracklist?.length ? pick.tracklist.map((t, n) => `${String(n + 1).padStart(2, '0')}. ${t}`).join('   ·   ') : '';
+      ticker.textContent = `now spinning: ${pick.artist} - ${pick.album}${tracks ? `   ·   ${tracks}` : ''}`;
     },
   };
 }
