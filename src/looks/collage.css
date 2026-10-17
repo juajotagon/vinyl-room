@@ -1,0 +1,268 @@
+/* COLLAGE: loud and poppy. A saturated gradient from the cover, the player
+   taped on like a photo, sticker-style sources and past covers scattered. */
+[data-look='collage'] {
+  --ink: #141414;
+  --card: #fff;
+  --pop: #ff3d7f;
+  color-scheme: light;
+}
+[data-look='collage'] body {
+  font: 16px/1.55 var(--sans);
+  color: var(--ink);
+}
+/* on the root element so the gradient covers the whole scrolled page */
+html[data-look='collage'] {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 85% 6%, color-mix(in oklab, var(--pop) 70%, transparent) 0, transparent 30%),
+    radial-gradient(circle at 10% 70%, color-mix(in oklab, var(--g1) 90%, #fff) 0, transparent 40%),
+    linear-gradient(135deg, color-mix(in oklab, var(--g2) 85%, #ff9a3d), var(--g2) 45%, color-mix(in oklab, var(--g2) 60%, #6a3dff));
+}
+[data-look='collage'] a {
+  color: inherit;
+}
+[data-look='collage'] .masthead,
+[data-look='collage'] .page,
+[data-look='collage'] .foot {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+[data-look='collage'] .masthead {
+  padding-top: 22px;
+  padding-bottom: 10px;
+  align-items: center;
+}
+[data-look='collage'] .logo {
+  font: 900 22px/1 var(--sans);
+  letter-spacing: -0.04em;
+  padding: 8px 14px;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 999px;
+  transform: rotate(-3deg);
+}
+[data-look='collage'] .tagline {
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+}
+[data-look='collage'] .mainnav a {
+  text-decoration: none;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--card);
+}
+[data-look='collage'] .mainnav a:hover {
+  background: var(--pop);
+  color: #fff;
+}
+[data-look='collage'] .page {
+  padding-top: 20px;
+}
+[data-look='collage'] .dateline {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #ffe14d;
+  font-weight: 800;
+  font-size: 13px;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+[data-look='collage'] .title {
+  font: 900 clamp(44px, 8vw, 112px) / 0.88 var(--sans);
+  letter-spacing: -0.05em;
+  color: #fff;
+  margin: 14px 0 10px;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.25);
+  overflow-wrap: anywhere;
+}
+[data-look='collage'] .byline {
+  font-weight: 800;
+  font-size: 22px;
+}
+[data-look='collage'] .artist {
+  background: var(--card);
+  padding: 2px 10px;
+  border-radius: 6px;
+}
+[data-look='collage'] .year {
+  color: #fff;
+}
+[data-look='collage'] .player {
+  position: relative;
+  background: var(--card);
+  padding: 12px 12px 14px;
+  transform: rotate(-2deg);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+  align-self: start;
+}
+/* a strip of tape holding it on */
+[data-look='collage'] .player::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -14px;
+  left: calc(50% - 60px);
+  width: 120px;
+  height: 30px;
+  background: rgba(255, 238, 140, 0.75);
+  transform: rotate(3deg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+[data-look='collage'] .screen {
+  background: radial-gradient(circle at 50% 35%, color-mix(in oklab, var(--g1) 60%, #fff), color-mix(in oklab, var(--g2) 55%, #fff) 80%);
+}
+[data-look='collage'] .hint {
+  font-weight: 700;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.5);
+}
+[data-look='collage'] .transport {
+  margin-top: 12px;
+}
+[data-look='collage'] .transport button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--ink);
+  color: #fff;
+}
+[data-look='collage'] .transport [data-action='toggle'] {
+  background: var(--pop);
+}
+[data-look='collage'] .lcd {
+  font-weight: 700;
+  font-size: 14px;
+}
+[data-look='collage'] .post-body {
+  background: var(--card);
+  border-radius: 22px;
+  padding: 26px 28px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+  align-self: start;
+}
+[data-look='collage'] .lede {
+  font-size: 19px;
+  font-weight: 500;
+}
+[data-look='collage'] .post-body h2 {
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+[data-look='collage'] .sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+[data-look='collage'] .sources li {
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  background: #f3f0ff;
+  border: 2px solid var(--ink);
+  transform: rotate(-1.5deg);
+}
+[data-look='collage'] .sources li:nth-child(even) {
+  transform: rotate(1.5deg);
+  background: #fff4cc;
+}
+[data-look='collage'] .avatar {
+  border-radius: 50%;
+  background: var(--pop);
+  color: #fff;
+  width: 28px;
+  height: 28px;
+}
+[data-look='collage'] .sources a {
+  gap: 8px;
+  font-weight: 700;
+}
+[data-look='collage'] .label {
+  font-weight: 500;
+  opacity: 0.7;
+}
+[data-look='collage'] .pill {
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-weight: 800;
+}
+[data-look='collage'] .pill.bandcamp {
+  background: var(--pop);
+}
+[data-look='collage'] .tracks li::marker {
+  font-weight: 800;
+  color: var(--pop);
+}
+[data-look='collage'] .post-nav a {
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: var(--card);
+  font-weight: 800;
+}
+[data-look='collage'] .post-nav .dir {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--pop);
+}
+[data-look='collage'] .collage {
+  grid-area: collage;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  padding: 10px;
+}
+[data-look='collage'] .chip {
+  width: 112px;
+  margin: -8px;
+  background: var(--card);
+  padding: 6px;
+  transform: rotate(var(--r));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+[data-look='collage'] .chip:hover {
+  transform: rotate(0) scale(1.08);
+  z-index: 1;
+}
+[data-look='collage'] .chip img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+[data-look='collage'] .archive {
+  display: none;
+}
+[data-look='collage'] .foot {
+  padding-top: 40px;
+  padding-bottom: 40px;
+  color: #fff;
+  font-weight: 600;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+[data-look='collage'] .foot a {
+  text-decoration: underline;
+}
+
+[data-look='collage'] .page {
+  grid-template-areas: 'head' 'player' 'body' 'collage' 'nav';
+}
+@media (min-width: 900px) {
+  [data-look='collage'] .page {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'head head'
+      'player body'
+      'collage body'
+      'nav nav';
+    grid-template-rows: auto auto 1fr auto;
+    column-gap: 40px;
+    row-gap: 28px;
+  }
+}

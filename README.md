@@ -1,10 +1,14 @@
 # Vinyl Room
 
-A fresh album pick every day, shown on a spinning record (Vite + Three.js).
-Click the record (or press Space/Enter) and the gatefold opens: the
-tracklist is inside and the vinyl slides out and spins at 33⅓ rpm. Use ← / →
-or the archive list to browse earlier days; each day has its own link
-(`/#2026-10-18`). On tall screens the sleeve opens upward.
+A fresh album pick every day, written up like a small personal blog post,
+with the record turning in a square player (Vite + Three.js). Click the
+record (or focus it and press Enter) and the gatefold opens: the tracklist is
+inside and the vinyl slides out and spins at 33⅓ rpm. Use ← / → or the
+archive to browse earlier days; each day has its own link (`/#2026-10-18`).
+
+The text loads first (about 13 kB of JS); the 3D player (three.js) loads
+right after and pauses when scrolled out of view. Three looks share the same
+page and can be switched in the footer or with `?look=player|journal|collage`.
 
 ## How the daily pick works
 
@@ -69,8 +73,10 @@ Set the image in `k8s/kustomization.yaml`, then `kubectl apply -k k8s/`.
 
 ## Layout
 
-- `src/main.js` scene, gatefold animation, camera framing, day navigation
-- `src/ui.js` info panel and archive list
-- `src/art.js` loads picks and draws the canvas textures
+- `src/main.js` page logic: loading days, navigation, lazy-loading the player
+- `src/scene.js` the 3D record, gatefold animation and camera framing
+- `src/ui.js` renders the post, sources, tracklist, archive and collage
+- `src/art.js` loads picks, draws the canvas textures, cover palette
+- `src/looks/` the three looks (player, journal, collage)
 - `scripts/picker/` sources, scoring, enrichment, description, CLI
 - `server/index.mjs` static server, `/healthz` and the daily schedule

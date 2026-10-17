@@ -1,52 +1,77 @@
 <!doctype html>
-<html lang="en" data-skin="hud">
+<html lang="en" data-look="player">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>vinyl room</title>
-    <meta name="description" content="A fresh album pick every day, on a spinning record." />
+    <meta name="description" content="One fresh record a day, with an archive of every pick." />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💿</text></svg>" />
     <script>
-      // Pick the skin before first paint: ?skin=… wins, then the last one used.
+      // Pick the look before first paint: ?look=… wins, then the last one used.
       (() => {
-        const skins = ['hud', 'bubble', 'grid'];
-        let skin = new URLSearchParams(location.search).get('skin');
+        const looks = ['player', 'journal', 'collage'];
+        let look = new URLSearchParams(location.search).get('look');
         try {
-          skin ??= localStorage.getItem('skin');
+          look ??= localStorage.getItem('look');
         } catch {}
-        if (skins.includes(skin)) document.documentElement.dataset.skin = skin;
+        if (looks.includes(look)) document.documentElement.dataset.look = look;
       })();
     </script>
   </head>
   <body>
-    <div class="backdrop" aria-hidden="true"></div>
-    <canvas id="scene" aria-label="Spinning record. Click to open the sleeve."></canvas>
-
-    <header class="topbar">
-      <a class="brand" href="#" data-today><span class="brand-a">vinyl</span><span class="brand-b">room</span></a>
-      <span class="tagline">one fresh album a day</span>
-      <nav class="topnav" aria-label="Main">
-        <a href="#" data-today><span class="n">01</span>today</a>
-        <a href="#" data-view="archive"><span class="n">02</span>archive</a>
-        <a href="#" data-view="about"><span class="n">03</span>about</a>
+    <header class="masthead">
+      <a class="logo" href="#" data-today>vinyl room</a>
+      <p class="tagline">one fresh record a day</p>
+      <nav class="mainnav" aria-label="Main">
+        <a href="#" data-today>today</a>
+        <a href="#archive" data-scroll="archive">archive</a>
+        <a href="#about" data-scroll="about">about</a>
       </nav>
-      <label class="skinpick">
-        <span>skin</span>
-        <select id="skin">
-          <option value="hud">2advanced</option>
-          <option value="bubble">y2k bubble</option>
-          <option value="grid">swiss grid</option>
-        </select>
-      </label>
     </header>
 
-    <aside class="window" id="panel" hidden></aside>
+    <main class="page">
+      <div class="post-head" id="post-head">
+        <p class="dateline">&nbsp;</p>
+        <h1 class="title">Loading today's record…</h1>
+      </div>
 
-    <footer class="statusbar">
-      <span class="led" aria-hidden="true"></span>
-      <span id="hint">click the record to open the sleeve</span>
-      <span class="keys">← → browse days · space opens</span>
-      <span class="ticker" aria-hidden="true"><span id="ticker"></span></span>
+      <section class="player" aria-label="Record player">
+        <div class="screen">
+          <canvas id="scene" tabindex="0" aria-label="The record. Press Enter or click to open the sleeve."></canvas>
+          <p class="hint" id="hint">click the record to open the sleeve</p>
+        </div>
+        <div class="transport">
+          <button type="button" data-nav="older" aria-label="Older pick">⏮</button>
+          <button type="button" data-action="toggle" aria-label="Open or close the sleeve">⏏</button>
+          <button type="button" data-nav="newer" aria-label="Newer pick">⏭</button>
+          <div class="lcd" aria-hidden="true"><span id="ticker"></span></div>
+        </div>
+      </section>
+
+      <div class="post-body" id="post-body"></div>
+      <nav class="post-nav" id="post-nav" aria-label="Other days"></nav>
+
+      <section class="archive" id="archive" aria-labelledby="archive-h">
+        <h2 id="archive-h">archive</h2>
+        <ol id="archive-list"></ol>
+      </section>
+
+      <div class="collage" id="collage" aria-hidden="true"></div>
+    </main>
+
+    <footer class="foot" id="about">
+      <p>
+        Every morning this page picks one fresh album from what <a href="https://daily.bandcamp.com" rel="noopener">Bandcamp Daily</a>,
+        <a href="https://www.stereogum.com" rel="noopener">Stereogum</a> and
+        <a href="https://www.youtube.com/@theneedledrop" rel="noopener">The Needle Drop</a> recommended in the last two weeks. Albums more
+        than one of them liked win, and nothing repeats. Covers and tracklists come from MusicBrainz.
+      </p>
+      <p class="looks">
+        look:
+        <a href="?look=player" data-look="player">player</a>
+        <a href="?look=journal" data-look="journal">journal</a>
+        <a href="?look=collage" data-look="collage">collage</a>
+      </p>
     </footer>
 
     <script type="module" src="/src/main.js"></script>

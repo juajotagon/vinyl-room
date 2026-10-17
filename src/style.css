@@ -1,12 +1,9 @@
-/* Layout shared by every skin. Colours, type and ornament live in skins/. */
-@import '@fontsource/silkscreen/400.css';
-@import '@fontsource/varela-round/400.css';
-@import '@fontsource/archivo-black/400.css';
-@import './skins/hud.css';
-@import './skins/bubble.css';
-@import './skins/grid.css';
+/* Shared structure. Each look in looks/ sets colours, type and layout. */
+@import './looks/player.css';
+@import './looks/journal.css';
+@import './looks/collage.css';
 
-/* Cover colours (set from JS) animate smoothly between days. */
+/* Cover colours (set from JS) fade between days. */
 @property --g1 {
   syntax: '<color>';
   inherits: true;
@@ -24,10 +21,9 @@
 }
 
 :root {
-  --top-h: 48px;
-  --status-h: 28px;
-  --panel-w: 380px;
-  --gap: 16px;
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --serif: Charter, 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
   transition:
     --g1 1.2s ease,
     --g2 1.2s ease,
@@ -38,199 +34,248 @@
   box-sizing: border-box;
 }
 
-html,
 body {
   margin: 0;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-
-#scene {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+img {
   display: block;
-  z-index: 1;
-  touch-action: manipulation;
 }
 
-/* ---- top bar ------------------------------------------------------------ */
-.topbar {
-  position: fixed;
-  z-index: 3;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--top-h);
+.masthead {
   display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 0 var(--gap);
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 16px;
 }
-.brand {
+.logo {
   text-decoration: none;
-  white-space: nowrap;
 }
-.topnav {
+.tagline {
+  margin: 0;
+}
+.mainnav {
   display: flex;
-  gap: 4px;
+  gap: 14px;
   margin-left: auto;
 }
-.topnav a {
-  text-decoration: none;
-  white-space: nowrap;
+
+.page {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'head' 'player' 'body' 'nav' 'archive';
+  scroll-margin-top: 16px;
 }
-.skinpick {
+.post-head {
+  grid-area: head;
+}
+.player {
+  grid-area: player;
+  min-width: 0;
+}
+.post-body {
+  grid-area: body;
+  min-width: 0;
+}
+.post-nav {
+  grid-area: nav;
+}
+.archive {
+  grid-area: archive;
+}
+.collage {
+  display: none;
+}
+
+.post-head .title {
+  margin: 0;
+}
+.post-head .dateline,
+.post-head .byline {
+  margin: 0;
+}
+.byline {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+/* the square player */
+.screen {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+#scene {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+  outline: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.scene-ready #scene {
+  opacity: 1;
+}
+.hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  margin: 0;
+  text-align: center;
+  pointer-events: none;
+}
+.transport {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.skinpick select {
-  font: inherit;
-}
-
-/* ---- the window -------------------------------------------------------- */
-.window {
-  position: fixed;
-  z-index: 2;
-  left: var(--gap);
-  top: calc(var(--top-h) + var(--gap));
-  bottom: calc(var(--status-h) + var(--gap));
-  width: var(--panel-w);
-  display: flex;
-  flex-direction: column;
-  animation: enter 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.window[hidden] {
-  display: none;
-}
-@keyframes enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-.titlebar,
-.menubar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.transport button {
   flex: none;
-}
-.titlebar .name {
-  flex: 1;
-}
-.menubar .spacer {
-  flex: 1;
-}
-.window button {
-  font: inherit;
-  color: inherit;
   cursor: pointer;
+  font: inherit;
 }
-.window button:disabled {
+.transport button:disabled {
   cursor: default;
   opacity: 0.35;
 }
-.doc {
+.lcd {
   flex: 1;
-  overflow: auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
 }
-.doc h1 {
-  margin: 0;
+#ticker {
+  display: inline-block;
+  padding-left: 100%;
+  animation: ticker 40s linear infinite;
 }
-.facts {
-  margin: 0;
+@keyframes ticker {
+  to {
+    transform: translateX(-100%);
+  }
 }
-.facts dd {
-  margin: 0;
+
+.post-body h2,
+.archive h2 {
+  margin: 0 0 10px;
 }
-.sources,
-.archive {
+.lede {
+  margin: 0 0 20px;
+}
+.sources {
   list-style: none;
-  margin: 0;
+  margin: 0 0 20px;
   padding: 0;
+  display: grid;
+  gap: 8px;
 }
-.sources a,
-.archive a {
+.sources li {
   display: flex;
-  gap: 10px;
   align-items: center;
+  gap: 10px;
+}
+.sources a {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  gap: 10px;
   text-decoration: none;
 }
-.sources em {
-  margin-left: auto;
-  font-style: normal;
-}
-.archive img,
-.archive .nocover {
-  width: 36px;
-  height: 36px;
-  object-fit: cover;
+.avatar {
+  display: grid;
+  place-items: center;
   flex: none;
-}
-.archive .meta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.archive .meta > * {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 32px;
+  height: 32px;
+  font-size: 11px;
+  font-weight: 700;
 }
 .links {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin: 0 0 24px;
 }
-.btn {
+.pill {
   text-decoration: none;
-  display: inline-block;
+}
+.tracks {
+  margin: 0;
+  padding-left: 2.2em;
+  columns: 2 220px;
+  column-gap: 32px;
+}
+.tracks li {
+  break-inside: avoid;
+  padding: 2px 0;
 }
 
-/* ---- status bar --------------------------------------------------------- */
-.statusbar {
-  position: fixed;
-  z-index: 3;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--status-h);
+.post-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.post-nav a {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 0 var(--gap);
+  flex-direction: column;
+  text-decoration: none;
+  min-width: 0;
+}
+.post-nav .newer {
+  text-align: right;
+}
+.post-nav .what {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.archive ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.archive a {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+.archive img,
+.archive .nocover {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+}
+.archive .what {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.archive .what > * {
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.led {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex: none;
+
+.foot .looks a {
+  margin-left: 6px;
 }
-.ticker {
-  flex: 1;
-  overflow: hidden;
-  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
-}
-#ticker {
-  display: inline-block;
-  padding-left: 100%;
-  animation: marquee 45s linear infinite;
-}
-@keyframes marquee {
-  to {
-    transform: translateX(-100%);
-  }
+[data-look='player'] .looks [data-look='player'],
+[data-look='journal'] .looks [data-look='journal'],
+[data-look='collage'] .looks [data-look='collage'] {
+  font-weight: 700;
+  text-decoration: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -238,38 +283,9 @@ body {
   *::before,
   *::after {
     animation: none !important;
+    transition: none !important;
   }
   #ticker {
     padding-left: 0;
-  }
-}
-
-/* ---- phones: the window becomes a bottom sheet ------------------------- */
-@media (max-width: 760px) {
-  :root {
-    --gap: 8px;
-  }
-  /* the window's own prev/next/archive buttons cover navigation here */
-  .tagline,
-  .keys,
-  .topnav,
-  .skinpick span {
-    display: none;
-  }
-  .skinpick {
-    margin-left: auto;
-  }
-  .topbar {
-    gap: 10px;
-  }
-  .window {
-    top: auto;
-    right: var(--gap);
-    width: auto;
-    height: 30vh;
-    min-height: 210px;
-  }
-  .window.expanded {
-    height: 70vh;
   }
 }
