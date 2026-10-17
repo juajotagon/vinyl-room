@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.claude/
+# Album art is downloaded by `npm run fetch-art` (and in the Docker build).
+public/art/
