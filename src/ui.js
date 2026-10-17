@@ -1,5 +1,5 @@
-// The "now_spinning.txt" window: a plain-text page about the day's pick, the
-// archive of past days, and a short about page. Plus the status-bar ticker.
+// The info window (today's pick, the archive, an about page), the status-bar
+// ticker and the skin switcher. Markup is skin-neutral; skins/*.css style it.
 
 const el = (tag, { dataset, ...props } = {}, ...children) => {
   const node = Object.assign(document.createElement(tag), props);
@@ -8,20 +8,26 @@ const el = (tag, { dataset, ...props } = {}, ...children) => {
   return node;
 };
 
-const LINK_NAMES = { bandcamp: 'listen on bandcamp', musicbrainz: 'musicbrainz entry', discogs: 'discogs entry' };
-const FILE_NAMES = { pick: 'now_spinning.txt', archive: 'archive.txt', about: 'readme.txt' };
+const LINK_NAMES = { bandcamp: 'Listen on Bandcamp', musicbrainz: 'MusicBrainz', discogs: 'Discogs' };
+const VIEWS = { pick: ['01', 'Now spinning'], archive: ['02', 'Archive'], about: ['03', 'About'] };
 
-const rule = () => el('div', { className: 'rule', textContent: '='.repeat(80), ariaHidden: 'true' });
-
-export function createPanel({ onNavigate }) {
+export function createPanel({ onNavigate, onSkin }) {
   const root = document.getElementById('panel');
   const ticker = document.getElementById('ticker');
+  const skinSelect = document.getElementById('skin');
   let view = 'pick';
   let current = null;
   let archive = [];
 
-  // One click handler for the window, the top bar and anything else with
-  // data-date / data-view / data-today.
+  skinSelect.value = document.documentElement.dataset.skin;
+  skinSelect.addEventListener('change', () => {
+    document.documentElement.dataset.skin = skinSelect.value;
+    try {
+      localStorage.setItem('skin', skinSelect.value);
+    } catch {}
+    onSkin?.(skinSelect.value);
+  });
+
   document.addEventListener('click', (e) => {
     const t = e.target.closest('[data-date], [data-view], [data-today], [data-action]');
     if (!t) return;
@@ -45,13 +51,14 @@ export function createPanel({ onNavigate }) {
   });
 
   function titlebar() {
-    const date = current?.date ? ` - ${current.date}` : '';
+    const [n, name] = VIEWS[view];
     return el(
       'div',
       { className: 'titlebar' },
-      el('span', { className: 'name', textContent: `${FILE_NAMES[view]}${view === 'pick' ? date : ''}` }),
-      el('button', { textContent: '_', title: 'Expand / shrink', dataset: { action: 'expand' } }),
-      el('button', { textContent: 'x', title: 'Back to today', dataset: { today: '' } }),
+      el('span', { className: 'n', textContent: n }),
+      el('span', { className: 'name', textContent: name }),
+      el('span', { className: 'meta', textContent: view === 'pick' && current?.date ? current.date : '' }),
+      el('button', { className: 'tb-btn', textContent: '–', title: 'Expand / shrink', ariaLabel: 'Expand or shrink', dataset: { action: 'expand' } }),
     );
   }
 
@@ -64,45 +71,43 @@ export function createPanel({ onNavigate }) {
     return el(
       'div',
       { className: 'menubar' },
-      btn('< prev', older, 'Previous day (←)'),
-      btn('next >', newer, 'Next day (→)'),
-      el('button', { textContent: 'archive', dataset: { view: 'archive' } }),
+      btn('‹ prev', older, 'Previous day (←)'),
+      btn('next ›', newer, 'Next day (→)'),
+      el('button', { textContent: 'archive', className: view === 'archive' ? 'on' : '', dataset: { view: 'archive' } }),
       el('span', { className: 'spacer' }),
-      el('span', { className: 'date', textContent: i === 0 ? 'today' : current?.date ? `day ${archive.length - i} of ${archive.length}` : '' }),
+      el('span', { className: 'pos', textContent: i === 0 ? 'today' : i > 0 ? `day ${archive.length - i}/${archive.length}` : '' }),
     );
   }
 
   function pickDoc(pick) {
     const facts = [
-      ['ARTIST', pick.artist],
-      ['ALBUM', pick.album],
-      ['YEAR', pick.year],
-      ['PICKED', pick.date],
-      ['TRACKS', pick.tracklist?.length || null],
+      ['Artist', pick.artist],
+      ['Album', pick.album],
+      ['Year', pick.year],
+      ['Tracks', pick.tracklist?.length || null],
     ].filter(([, v]) => v);
     const sources = (pick.sources ?? []).map((s) =>
-      el('li', {}, el('a', { href: s.url, target: '_blank', rel: 'noopener', textContent: `${s.name.toLowerCase()} (${s.label.toLowerCase()})` })),
+      el('li', {}, el('a', { href: s.url, target: '_blank', rel: 'noopener' }, el('span', { textContent: s.name }), el('em', { textContent: s.label }))),
     );
     const links = Object.entries(pick.links ?? {}).map(([k, href]) =>
-      el('li', {}, el('a', { href, target: '_blank', rel: 'noopener', textContent: LINK_NAMES[k] ?? k })),
+      el('a', { className: `btn ${k}`, href, target: '_blank', rel: 'noopener', textContent: LINK_NAMES[k] ?? k }),
     );
     return [
-      el('h1', { textContent: `${pick.artist} - ${pick.album}` }),
-      rule(),
+      el('h1', { className: 'album', textContent: pick.album }),
+      el('div', { className: 'artist', textContent: pick.artist }),
       el('dl', { className: 'facts' }, ...facts.map(([k, v]) => el('div', {}, el('dt', { textContent: k }), el('dd', { textContent: v })))),
-      pick.description && el('p', { textContent: pick.description }),
-      sources.length > 0 && el('div', { textContent: 'RECOMMENDED BY:' }),
-      sources.length > 0 && el('ul', { className: 'cmds' }, ...sources),
-      links.length > 0 && el('div', { textContent: 'LINKS:' }),
-      links.length > 0 && el('ul', { className: 'cmds' }, ...links),
-      !pick.date && el('p', { textContent: 'No daily picks yet, so here is a classic. Run `npm run pick` to start the archive.' }),
+      pick.description && el('p', { className: 'desc', textContent: pick.description }),
+      sources.length > 0 && el('h2', { textContent: 'Recommended by' }),
+      sources.length > 0 && el('ul', { className: 'sources' }, ...sources),
+      links.length > 0 && el('div', { className: 'links' }, ...links),
+      !pick.date && el('p', { className: 'desc', textContent: 'No daily picks yet, so here is a classic. Run `npm run pick` to start the archive.' }),
     ];
   }
 
   function archiveDoc() {
     return [
-      el('h1', { textContent: `archive - ${archive.length} day${archive.length === 1 ? '' : 's'}` }),
-      rule(),
+      el('h1', { className: 'album', textContent: 'Archive' }),
+      el('div', { className: 'artist', textContent: `${archive.length} day${archive.length === 1 ? '' : 's'} of picks` }),
       el(
         'ol',
         { className: 'archive' },
@@ -113,8 +118,8 @@ export function createPanel({ onNavigate }) {
             el(
               'a',
               { href: `#${a.date}`, className: a.date === current?.date ? 'current' : '', dataset: { date: a.date } },
-              el('span', { textContent: a.date }),
-              el('span', { className: 't', textContent: `${a.artist} - ${a.album}` }),
+              a.cover ? el('img', { src: `data/${a.cover}`, alt: '', loading: 'lazy', width: 36, height: 36 }) : el('span', { className: 'nocover' }),
+              el('span', { className: 'meta' }, el('strong', { textContent: a.album }), el('span', { textContent: `${a.artist} · ${a.date}` })),
             ),
           ),
         ),
@@ -124,14 +129,15 @@ export function createPanel({ onNavigate }) {
 
   function aboutDoc() {
     return [
-      el('h1', { textContent: 'readme' }),
-      rule(),
+      el('h1', { className: 'album', textContent: 'About' }),
+      el('div', { className: 'artist', textContent: 'vinyl room' }),
       el('p', {
+        className: 'desc',
         textContent:
           'Every morning this page picks one fresh album from what Bandcamp Daily, Stereogum and The Needle Drop recommended in the last two weeks. Albums more than one of them liked win, and nothing repeats.',
       }),
-      el('p', { textContent: 'Click the record to open the sleeve. Use the arrow keys or the archive to visit earlier days. Every day has its own link.' }),
-      el('p', { textContent: 'Covers and tracklists come from MusicBrainz and the Cover Art Archive.' }),
+      el('p', { className: 'desc', textContent: 'Click the record to open the sleeve. Use the arrow keys or the archive to visit earlier days. Every day has its own link.' }),
+      el('p', { className: 'desc', textContent: 'Covers and tracklists come from MusicBrainz and the Cover Art Archive. Try the skin menu up top.' }),
     ];
   }
 
@@ -147,13 +153,13 @@ export function createPanel({ onNavigate }) {
       current = pick;
       archive = list;
       root.hidden = false;
-      // Re-trigger the settle animation for the new day.
+      // Re-trigger the entrance animation for the new day.
       root.style.animation = 'none';
       void root.offsetWidth;
       root.style.animation = '';
       draw();
-      const tracks = pick.tracklist?.length ? pick.tracklist.map((t, n) => `${String(n + 1).padStart(2, '0')}. ${t}`).join('   ·   ') : '';
-      ticker.textContent = `now spinning: ${pick.artist} - ${pick.album}${tracks ? `   ·   ${tracks}` : ''}`;
+      const tracks = pick.tracklist?.length ? pick.tracklist.map((t, n) => `${String(n + 1).padStart(2, '0')} ${t}`).join('  ·  ') : '';
+      ticker.textContent = `now spinning: ${pick.artist} – ${pick.album}${tracks ? `  ·  ${tracks}` : ''}`;
     },
   };
 }

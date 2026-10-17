@@ -1,0 +1,264 @@
+/* Swiss grid, the Designers Republic / Kaff / Identikal side of 2001:
+   off-white paper, heavy black type, big numbers, one loud orange. */
+[data-skin='grid'] {
+  --ink: #111;
+  --paper: #f1f0eb;
+  --dim: #77756d;
+  --acc: #ff4d00;
+  --pixel: 8px/1 'Silkscreen', monospace;
+  --heavy: 'Archivo Black', 'Arial Black', Impact, sans-serif;
+  color-scheme: light;
+}
+[data-skin='grid'] body {
+  font: 12px/1.5 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+[data-skin='grid'] .backdrop {
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 1px, transparent 1px 80px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.06) 0 1px, transparent 1px 80px),
+    var(--paper);
+}
+/* a big block of the cover's colour behind the record */
+[data-skin='grid'] .backdrop::before {
+  content: '';
+  position: absolute;
+  top: var(--top-h);
+  bottom: var(--status-h);
+  left: calc(var(--panel-w) + 2 * var(--gap) + 80px);
+  right: 0;
+  background: var(--g2);
+}
+[data-skin='grid'] .backdrop::after {
+  content: 'VR/01';
+  position: absolute;
+  right: 24px;
+  bottom: calc(var(--status-h) + 8px);
+  font: 120px/0.8 var(--heavy);
+  color: rgba(0, 0, 0, 0.12);
+  letter-spacing: -6px;
+}
+[data-skin='grid'] a {
+  color: var(--ink);
+}
+
+[data-skin='grid'] .topbar {
+  background: var(--paper);
+  border-bottom: 3px solid var(--ink);
+}
+[data-skin='grid'] .brand {
+  font: 20px/1 var(--heavy);
+  text-transform: uppercase;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+}
+[data-skin='grid'] .brand-b {
+  color: var(--acc);
+}
+[data-skin='grid'] .brand-b::after {
+  content: '®';
+  font-size: 10px;
+  vertical-align: top;
+  color: var(--ink);
+}
+[data-skin='grid'] .tagline,
+[data-skin='grid'] .skinpick span {
+  font: var(--pixel);
+  text-transform: uppercase;
+  color: var(--dim);
+}
+[data-skin='grid'] .topnav {
+  gap: 0;
+}
+[data-skin='grid'] .topnav a {
+  font: 11px/1 var(--heavy);
+  text-transform: uppercase;
+  color: var(--ink);
+  padding: 10px 12px;
+}
+[data-skin='grid'] .topnav a:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+[data-skin='grid'] .topnav .n {
+  font: var(--pixel);
+  color: var(--acc);
+  margin-right: 4px;
+  vertical-align: top;
+}
+[data-skin='grid'] .skinpick select {
+  font: 11px var(--heavy);
+  text-transform: uppercase;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  padding: 3px;
+}
+
+[data-skin='grid'] .window {
+  background: #fff;
+  border: 3px solid var(--ink);
+  box-shadow: 8px 8px 0 var(--ink);
+}
+[data-skin='grid'] .titlebar {
+  align-items: flex-end;
+  padding: 10px 12px;
+  background: var(--ink);
+  color: #fff;
+  font: 14px/1 var(--heavy);
+  text-transform: uppercase;
+}
+[data-skin='grid'] .titlebar .n {
+  font: 44px/0.75 var(--heavy);
+  color: var(--acc);
+  letter-spacing: -2px;
+}
+[data-skin='grid'] .titlebar .meta {
+  font: var(--pixel);
+  color: #bbb;
+}
+[data-skin='grid'] .tb-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: var(--acc);
+  border: 0;
+  color: var(--ink);
+}
+[data-skin='grid'] .menubar {
+  padding: 0;
+  border-bottom: 3px solid var(--ink);
+  gap: 0;
+}
+[data-skin='grid'] .menubar button {
+  font: 10px/1 var(--heavy);
+  text-transform: uppercase;
+  padding: 9px 12px;
+  border: 0;
+  border-right: 1px solid var(--ink);
+  background: transparent;
+}
+[data-skin='grid'] .menubar button:hover:not(:disabled),
+[data-skin='grid'] .menubar button.on {
+  background: var(--acc);
+}
+[data-skin='grid'] .menubar .pos {
+  font: var(--pixel);
+  text-transform: uppercase;
+  padding-right: 10px;
+}
+[data-skin='grid'] .doc {
+  padding: 16px;
+}
+[data-skin='grid'] .album {
+  font: 30px/0.95 var(--heavy);
+  text-transform: uppercase;
+  letter-spacing: -1px;
+}
+[data-skin='grid'] .artist {
+  margin: 8px 0 14px;
+  font: 13px/1.2 var(--heavy);
+  text-transform: uppercase;
+  color: var(--acc);
+}
+[data-skin='grid'] .facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--ink);
+  margin-bottom: 14px;
+}
+[data-skin='grid'] .facts div {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ink);
+}
+[data-skin='grid'] .facts div:nth-child(-n + 2) {
+  display: none;
+}
+[data-skin='grid'] .facts dt {
+  font: var(--pixel);
+  text-transform: uppercase;
+  color: var(--dim);
+}
+[data-skin='grid'] .facts dd {
+  font: 18px/1.2 var(--heavy);
+}
+[data-skin='grid'] .desc {
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+[data-skin='grid'] .doc h2 {
+  font: var(--pixel);
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+[data-skin='grid'] .sources {
+  margin-bottom: 14px;
+  border-top: 1px solid var(--ink);
+}
+[data-skin='grid'] .sources a {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--ink);
+  font-weight: bold;
+}
+[data-skin='grid'] .sources a:hover {
+  background: var(--acc);
+}
+[data-skin='grid'] .sources em {
+  font: var(--pixel);
+  text-transform: uppercase;
+}
+[data-skin='grid'] .btn {
+  font: 11px/1 var(--heavy);
+  text-transform: uppercase;
+  padding: 10px 12px;
+  background: var(--ink);
+  color: #fff !important;
+}
+[data-skin='grid'] .btn:hover,
+[data-skin='grid'] .btn.bandcamp {
+  background: var(--acc);
+  color: var(--ink) !important;
+}
+[data-skin='grid'] .archive {
+  border-top: 1px solid var(--ink);
+}
+[data-skin='grid'] .archive a {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ink);
+  color: var(--ink);
+}
+[data-skin='grid'] .archive a:hover,
+[data-skin='grid'] .archive a.current {
+  background: var(--acc);
+}
+[data-skin='grid'] .archive strong {
+  font: 12px/1.2 var(--heavy);
+  text-transform: uppercase;
+}
+[data-skin='grid'] .archive .meta span {
+  font-size: 11px;
+}
+
+[data-skin='grid'] .statusbar {
+  background: var(--ink);
+  color: #fff;
+  font: var(--pixel);
+  text-transform: uppercase;
+}
+[data-skin='grid'] .led {
+  border-radius: 0;
+  background: var(--acc);
+}
+@media (max-width: 760px) {
+  [data-skin='grid'] .backdrop::before {
+    left: 0;
+    bottom: 45%;
+  }
+  [data-skin='grid'] .backdrop::after {
+    font-size: 64px;
+    top: calc(var(--top-h) + 8px);
+    bottom: auto;
+    right: 12px;
+  }
+}

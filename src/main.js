@@ -203,7 +203,7 @@ function resize() {
   camera.aspect = w / h;
   portrait = camera.aspect < 0.85;
   // Keep the record centred in the space the panel leaves free.
-  const panelW = !portrait && w >= 900 ? 432 : 0; // .window width + margins
+  const panelW = !portrait && w >= 900 ? 412 : 0; // .window width + margins
   const sheetH = portrait ? Math.max(h * 0.3, 210) + 70 : 0; // bottom sheet + status bar
   const topH = 40; // top bar
   free.x = (w - panelW) / w;

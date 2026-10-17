@@ -1,7 +1,12 @@
-/* Early-2000s personal homepage, built with today's CSS: a three-stop
-   gradient that takes its colours from the day's cover, plain-text windows,
-   bracketed links and a status bar. */
+/* Layout shared by every skin. Colours, type and ornament live in skins/. */
+@import '@fontsource/silkscreen/400.css';
+@import '@fontsource/varela-round/400.css';
+@import '@fontsource/archivo-black/400.css';
+@import './skins/hud.css';
+@import './skins/bubble.css';
+@import './skins/grid.css';
 
+/* Cover colours (set from JS) animate smoothly between days. */
 @property --g1 {
   syntax: '<color>';
   inherits: true;
@@ -19,16 +24,14 @@
 }
 
 :root {
-  --ink: #111;
-  --paper: #fbfbf7;
-  --paper-2: #ecece4;
-  --line: #7a7a74;
-  --link: #0033cc;
-  --visited: #551a8b;
-  --title-a: #0a246a; /* window title bar, classic blue */
-  --title-b: #a6caf0;
-  --chrome: 11px/1.4 Verdana, Tahoma, 'DejaVu Sans', Geneva, sans-serif;
-  --mono: 13px/1.5 'Lucida Console', 'Courier New', ui-monospace, monospace;
+  --top-h: 48px;
+  --status-h: 28px;
+  --panel-w: 380px;
+  --gap: 16px;
+  transition:
+    --g1 1.2s ease,
+    --g2 1.2s ease,
+    --g3 1.2s ease;
 }
 
 * {
@@ -42,23 +45,9 @@ body {
   overflow: hidden;
 }
 
-body {
-  font: var(--chrome);
-  color: var(--ink);
-  background: linear-gradient(180deg, var(--g1) 0%, var(--g2) 55%, var(--g3) 100%) fixed;
-  transition:
-    --g1 1.2s ease,
-    --g2 1.2s ease,
-    --g3 1.2s ease;
-}
-
-/* Faint scanlines, for the CRT memory. */
-body::before {
-  content: '';
+.backdrop {
   position: fixed;
   inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 3px);
   z-index: 0;
 }
 
@@ -72,268 +61,171 @@ body::before {
   touch-action: manipulation;
 }
 
-a {
-  color: var(--link);
-}
-a:visited {
-  color: var(--visited);
-}
-a:hover {
-  background: #ffff99;
-}
-:focus-visible {
-  outline: 1px dotted #000;
-  outline-offset: 1px;
-}
-
 /* ---- top bar ------------------------------------------------------------ */
 .topbar {
   position: fixed;
+  z-index: 3;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 3;
+  height: var(--top-h);
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.72);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(8px) saturate(1.3);
-  -webkit-backdrop-filter: blur(8px) saturate(1.3);
+  align-items: center;
+  gap: 18px;
+  padding: 0 var(--gap);
 }
-
 .brand {
-  font: bold 15px/1 'Trebuchet MS', Verdana, sans-serif;
-  letter-spacing: 0.5px;
-  color: var(--ink) !important;
   text-decoration: none;
-}
-
-.cursor {
-  animation: blink 1s steps(1) infinite;
-}
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
-}
-
-.tagline {
-  color: #444;
-}
-
-.topnav {
-  margin-left: auto;
   white-space: nowrap;
 }
+.topnav {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.topnav a {
+  text-decoration: none;
+  white-space: nowrap;
+}
+.skinpick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.skinpick select {
+  font: inherit;
+}
 
-/* ---- the plain-text window ---------------------------------------------- */
+/* ---- the window -------------------------------------------------------- */
 .window {
   position: fixed;
   z-index: 2;
-  left: 16px;
-  top: 52px;
-  bottom: 40px;
-  width: 400px;
+  left: var(--gap);
+  top: calc(var(--top-h) + var(--gap));
+  bottom: calc(var(--status-h) + var(--gap));
+  width: var(--panel-w);
   display: flex;
   flex-direction: column;
-  background: var(--paper);
-  border: 1px solid #000;
-  box-shadow:
-    inset 1px 1px 0 #fff,
-    inset -1px -1px 0 #a0a09a,
-    4px 4px 0 rgba(0, 0, 0, 0.35);
-  /* modern touch: settle in when a new day loads */
-  animation: settle 0.35s ease-out;
+  animation: enter 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .window[hidden] {
   display: none;
 }
-@keyframes settle {
+@keyframes enter {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px);
   }
 }
-
-.titlebar {
+.titlebar,
+.menubar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 4px 3px 6px;
-  color: #fff;
-  font-weight: bold;
-  background: linear-gradient(90deg, var(--title-a), var(--title-b));
-  user-select: none;
+  gap: 8px;
+  flex: none;
 }
 .titlebar .name {
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.titlebar button {
-  width: 18px;
-  height: 16px;
-  padding: 0;
-  font: bold 10px/1 Verdana, sans-serif;
-  color: #000;
-  background: #d4d0c8;
-  border: 1px solid;
-  border-color: #fff #404040 #404040 #fff;
-  cursor: pointer;
-}
-.titlebar button:active {
-  border-color: #404040 #fff #fff #404040;
-}
-
-.menubar {
-  display: flex;
-  gap: 2px;
-  padding: 2px 4px;
-  background: var(--paper-2);
-  border-bottom: 1px solid var(--line);
-}
-.menubar button {
-  font: var(--chrome);
-  padding: 1px 6px;
-  background: none;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-.menubar button:hover:not(:disabled) {
-  border-color: #fff #808080 #808080 #fff;
-}
-.menubar button:disabled {
-  color: #999;
-  cursor: default;
 }
 .menubar .spacer {
   flex: 1;
 }
-.menubar .date {
-  align-self: center;
-  color: #444;
-  padding-right: 4px;
+.window button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
-
+.window button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
 .doc {
   flex: 1;
   overflow: auto;
-  padding: 12px 14px 16px;
-  font: var(--mono);
-  scrollbar-color: #a0a09a var(--paper-2);
 }
 .doc h1 {
-  font: inherit;
-  font-weight: bold;
   margin: 0;
-  text-transform: uppercase;
 }
-.doc .rule {
-  color: #888;
-  overflow: hidden;
-  white-space: nowrap;
-  margin: 2px 0 10px;
-}
-.doc p {
-  margin: 0 0 12px;
-}
-
-/* "ARTIST ...... Name" rows with dotted leaders */
 .facts {
-  margin: 0 0 12px;
-}
-.facts div {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0;
-}
-.facts dt {
-  white-space: nowrap;
-}
-.facts dt::after {
-  content: ' ............';
-  color: #999;
+  margin: 0;
 }
 .facts dd {
   margin: 0;
-  padding-left: 1ch;
 }
-
-.cmds {
-  list-style: none;
-  margin: 0 0 12px;
-  padding: 0;
-}
-.cmds li::before {
-  content: '> ';
-  color: #888;
-}
-
+.sources,
 .archive {
   list-style: none;
   margin: 0;
   padding: 0;
 }
+.sources a,
 .archive a {
-  display: grid;
-  grid-template-columns: 11ch 1fr;
-  gap: 1ch;
-  padding: 1px 2px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
   text-decoration: none;
-  color: var(--ink) !important;
 }
-.archive a:hover,
-.archive a.current {
-  background: #0a246a;
-  color: #fff !important;
+.sources em {
+  margin-left: auto;
+  font-style: normal;
 }
-.archive .t {
+.archive img,
+.archive .nocover {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  flex: none;
+}
+.archive .meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.archive .meta > * {
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.btn {
+  text-decoration: none;
+  display: inline-block;
 }
 
 /* ---- status bar --------------------------------------------------------- */
 .statusbar {
   position: fixed;
+  z-index: 3;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 3;
+  height: var(--status-h);
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 26px;
-  padding: 0 12px;
-  background: rgba(212, 208, 200, 0.92);
-  border-top: 1px solid #fff;
-  box-shadow: 0 -1px 0 #808080;
+  gap: 14px;
+  padding: 0 var(--gap);
   white-space: nowrap;
   overflow: hidden;
 }
-.statusbar .sep {
-  color: #808080;
-}
 .led {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #b6ff9c, #1f9d00);
-  box-shadow: 0 0 4px #4cff2b;
   flex: none;
 }
 .ticker {
   flex: 1;
   overflow: hidden;
-  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
 }
 #ticker {
   display: inline-block;
   padding-left: 100%;
-  animation: marquee 40s linear infinite;
+  animation: marquee 45s linear infinite;
 }
 @keyframes marquee {
   to {
@@ -342,28 +234,37 @@ a:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #ticker,
-  .cursor,
-  .window {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
   }
   #ticker {
     padding-left: 0;
   }
 }
 
-/* ---- phones: window becomes a bottom sheet ------------------------------- */
+/* ---- phones: the window becomes a bottom sheet ------------------------- */
 @media (max-width: 760px) {
+  :root {
+    --gap: 8px;
+  }
+  /* the window's own prev/next/archive buttons cover navigation here */
   .tagline,
   .keys,
-  .keys + .sep {
+  .topnav,
+  .skinpick span {
     display: none;
   }
+  .skinpick {
+    margin-left: auto;
+  }
+  .topbar {
+    gap: 10px;
+  }
   .window {
-    left: 8px;
-    right: 8px;
     top: auto;
-    bottom: 34px;
+    right: var(--gap);
     width: auto;
     height: 30vh;
     min-height: 210px;
