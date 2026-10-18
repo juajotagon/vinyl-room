@@ -164,59 +164,32 @@ img {
   }
 }
 
-.post-body h2,
 .archive h2 {
   margin: 0 0 10px;
 }
-.lede {
-  margin: 0 0 20px;
+.post-body:empty {
+  display: none;
 }
-.sources {
-  list-style: none;
-  margin: 0 0 20px;
-  padding: 0;
-  display: grid;
-  gap: 8px;
+.listen {
+  display: inline-block;
 }
-.sources li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.sources a {
-  display: flex;
-  flex: 1;
-  justify-content: space-between;
-  gap: 10px;
-  text-decoration: none;
-}
-.avatar {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 32px;
-  height: 32px;
-  font-size: 11px;
-  font-weight: 700;
-}
-.links {
+
+/* genre tags: shared by the title block and history rows */
+.tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 24px;
+  gap: 6px;
+  margin: 12px 0 0;
 }
-.pill {
-  text-decoration: none;
+.tag,
+.chip-f {
+  font: inherit;
+  cursor: pointer;
+  line-height: 1.2;
 }
-.tracks {
-  margin: 0;
-  padding-left: 2.2em;
-  columns: 2 220px;
-  column-gap: 32px;
-}
-.tracks li {
-  break-inside: avoid;
-  padding: 2px 0;
+.chip-f .n {
+  margin-left: 6px;
+  opacity: 0.6;
 }
 
 .post-nav {
@@ -239,22 +212,49 @@ img {
   white-space: nowrap;
 }
 
-.archive ol {
+.filters {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.frow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.month h3 {
+  margin: 22px 0 6px;
+  font-size: 1em;
+}
+.month ol {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.archive a {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
+.row {
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+}
+.row > a {
+  display: grid;
+  grid-template-columns: 4.2em 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 280px;
+  min-width: 0;
   text-decoration: none;
+}
+.row .tags {
+  margin: 0;
+  flex: 0 1 auto;
+  justify-content: flex-end;
 }
 .archive img,
 .archive .nocover {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   object-fit: cover;
 }
 .archive .what {
@@ -267,6 +267,9 @@ img {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.empty-note {
+  margin: 12px 0;
+}
 
 .foot .looks a {
   margin-left: 6px;
@@ -276,6 +279,19 @@ img {
 [data-look='collage'] .looks [data-look='collage'] {
   font-weight: 700;
   text-decoration: none;
+}
+
+@media (max-width: 600px) {
+  .row > a {
+    grid-template-columns: 3.4em 44px minmax(0, 1fr);
+    gap: 10px;
+    flex-basis: 100%;
+  }
+  .row .tags {
+    justify-content: flex-start;
+    flex-basis: 100%;
+    padding-left: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

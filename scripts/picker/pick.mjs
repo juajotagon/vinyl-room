@@ -4,17 +4,18 @@
 //   node scripts/picker/pick.mjs --date 2026-10-14
 //   node scripts/picker/pick.mjs --backfill 7    # the last 7 days, oldest first
 //   node scripts/picker/pick.mjs --force         # redo a day that already has a pick
+//   node scripts/picker/pick.mjs --retag         # redo genre tags for existing picks (same albums)
 //
 // Output (DATA_DIR, default public/data):
-//   archive.json          newest first: [{ date, artist, album, year, cover }]
+//   archive.json          newest first: [{ date, artist, album, year, cover, genres }]
 //   picks/<date>.json     everything about that day's pick
 //   covers/<date>.jpg
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { albumKey, bandcampAlbumUrl, collectCandidates } from './sources.mjs';
+import { albumKey, collectCandidates, fetchBandcampArticle } from './sources.mjs';
 import { enrich } from './enrich.mjs';
-import { describe } from './describe.mjs';
+import { mergeUnmatched, tagAlbum } from './genres.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const DATA_DIR = resolve(process.env.DATA_DIR ?? join(ROOT, 'public', 'data'));
@@ -62,6 +63,63 @@ export function rank(candidates, date, exclude = new Set()) {
   return [...groups.values()].sort((a, b) => b.score - a.score || b.newest - a.newest);
 }
 
+const archiveEntry = (p) => ({
+  date: p.date,
+  artist: p.artist,
+  album: p.album,
+  year: p.year,
+  cover: p.cover,
+  genres: { primary: p.genres.primary, secondary: p.genres.secondary, subgenres: p.genres.subgenres },
+});
+
+// Runs the genre tagger and stores the result on the pick.
+async function applyTags(pick, { bandcampGenreSlug = null } = {}, log = console) {
+  const t = await tagAlbum({
+    artist: pick.artist,
+    album: pick.album,
+    year: pick.year,
+    mbid: pick.mbid,
+    bandcampAlbumUrl: pick.links?.bandcamp,
+    bandcampGenreSlug,
+    log,
+  });
+  pick.genres = { primary: t.primary, secondary: t.secondary, subgenres: t.subgenres, confidence: t.confidence, by: t.by };
+  pick.genreEvidence = t.evidence;
+  await mergeUnmatched(DATA_DIR, t.unmatched);
+  log.info(`[genres] ${pick.artist} — ${pick.album}: ${t.primary ?? 'none'} [${t.subgenres.join(', ')}] (${t.confidence}, ${t.by})`);
+}
+
+// Re-tags every existing pick without changing which album was picked.
+export async function retagAll(log = console) {
+  const archivePath = join(DATA_DIR, 'archive.json');
+  const archive = await readJson(archivePath, []);
+  for (const entry of archive) {
+    const pickPath = join(DATA_DIR, 'picks', `${entry.date}.json`);
+    const pick = await readJson(pickPath, null);
+    if (!pick) continue;
+    let genreSlug = null;
+    const reviewUrl = pick.sources?.find((s) => s.name === 'Bandcamp Daily')?.url;
+    if (reviewUrl) {
+      const article = await fetchBandcampArticle(reviewUrl, pick.album);
+      genreSlug = article.genreSlug;
+      if (!pick.links?.bandcamp && article.albumUrl) pick.links = { ...pick.links, bandcamp: article.albumUrl };
+    }
+    if (!pick.mbid || !pick.links?.bandcamp) {
+      const d = await enrich({ artist: pick.artist, album: pick.album }, log);
+      pick.mbid ??= d.mbid;
+      if (!pick.links?.bandcamp && d.bandcampUrl) pick.links = { ...pick.links, bandcamp: d.bandcampUrl };
+      if (d.links.musicbrainz && !pick.links.musicbrainz) pick.links.musicbrainz = d.links.musicbrainz;
+    }
+    pick.year ??= null;
+    await applyTags(pick, { bandcampGenreSlug: genreSlug }, log);
+    delete pick.description;
+    delete pick.describedBy;
+    await writeAtomic(pickPath, JSON.stringify(pick, null, 2) + '\n');
+    Object.assign(entry, archiveEntry(pick));
+  }
+  await writeAtomic(archivePath, JSON.stringify(archive, null, 2) + '\n');
+}
+
 export async function pickDay(date = today(), { force = false, candidates, log = console } = {}) {
   const pickPath = join(DATA_DIR, 'picks', `${date}.json`);
   const existing = await readJson(pickPath, null);
@@ -84,13 +142,21 @@ export async function pickDay(date = today(), { force = false, candidates, log =
   const details = await enrich({ artist: lead.artist, album: lead.album, images: best.mentions.map((m) => m.image) }, log);
   const links = { ...details.links };
   const bc = best.mentions.find((m) => m.source === 'bandcamp-daily');
-  if (bc) links.bandcamp = await bandcampAlbumUrl(bc.url, lead.album);
+  let bandcampUrl = details.bandcampUrl;
+  let genreSlug = null;
+  if (bc) {
+    const article = await fetchBandcampArticle(bc.url, lead.album);
+    bandcampUrl = article.albumUrl ?? bandcampUrl;
+    genreSlug = article.genreSlug;
+  }
+  if (bandcampUrl) links.bandcamp = bandcampUrl;
 
   const pick = {
     date,
     artist: lead.artist,
     album: lead.album,
     year: details.year,
+    mbid: details.mbid,
     tracklist: details.tracklist,
     cover: null,
     sources: best.mentions.map((m) => ({
@@ -107,13 +173,11 @@ export async function pickDay(date = today(), { force = false, candidates, log =
     pick.cover = `covers/${date}.jpg`;
     await writeAtomic(join(DATA_DIR, pick.cover), details.cover);
   }
-  const description = await describe(pick, log);
-  pick.description = description.text;
-  pick.describedBy = description.by;
+  await applyTags(pick, { bandcampGenreSlug: genreSlug }, log);
   pick.pickedAt = new Date().toISOString();
 
   await writeAtomic(pickPath, JSON.stringify(pick, null, 2) + '\n');
-  archive.push({ date, artist: pick.artist, album: pick.album, year: pick.year, cover: pick.cover });
+  archive.push(archiveEntry(pick));
   archive.sort((a, b) => b.date.localeCompare(a.date));
   await writeAtomic(join(DATA_DIR, 'archive.json'), JSON.stringify(archive, null, 2) + '\n');
   return pick;
@@ -129,7 +193,9 @@ async function main() {
   const backfill = Number(opt('--backfill') ?? 0);
   const date = opt('--date') ?? today();
 
-  if (backfill > 0) {
+  if (args.includes('--retag')) {
+    await retagAll();
+  } else if (backfill > 0) {
     // Fetch the feeds once and replay them day by day.
     const candidates = await collectCandidates();
     const end = new Date(`${date}T12:00:00`);

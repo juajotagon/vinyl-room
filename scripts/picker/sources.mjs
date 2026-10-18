@@ -99,15 +99,35 @@ export async function collectCandidates(log = console) {
   return all;
 }
 
-// Bandcamp Daily reviews link the album page; find the one for this album.
-export async function bandcampAlbumUrl(reviewUrl, album) {
+// One request per Bandcamp Daily article: the album page it links to, and the
+// editorial genre (JSON-LD "genre" URL like .../genres/metal, or an article:tag).
+export async function fetchBandcampArticle(reviewUrl, album) {
   try {
     const html = await get(reviewUrl);
     const links = [...new Set(html.match(/https:\/\/[a-z0-9-]+\.bandcamp\.com\/album\/[a-z0-9-]+/g) ?? [])];
     const slug = slugify(album);
-    return links.find((l) => l.endsWith(`/album/${slug}`)) ?? links.find((l) => l.includes(slug.slice(0, 12))) ?? null;
+    const albumUrl = links.find((l) => l.endsWith(`/album/${slug}`)) ?? links.find((l) => l.includes(slug.slice(0, 12))) ?? null;
+
+    let genreSlug = null;
+    for (const m of html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/g)) {
+      try {
+        const nodes = [JSON.parse(m[1])].flatMap((d) => d['@graph'] ?? d);
+        for (const n of nodes) {
+          const g = [n.genre].flat().find((x) => typeof x === 'string' && x);
+          const slugMatch = g?.match(/\/genres\/([a-z0-9-]+)/i);
+          if (slugMatch) genreSlug = slugMatch[1].toLowerCase();
+          else if (g && !genreSlug) genreSlug = slugify(g);
+        }
+      } catch {
+        // ignore malformed JSON-LD
+      }
+      if (genreSlug) break;
+    }
+    genreSlug ??= html.match(/<meta[^>]+property="article:tag"[^>]+content="([^"]+)"/i)?.[1];
+    genreSlug = genreSlug ? slugify(decode(genreSlug)) : null;
+    return { albumUrl, genreSlug };
   } catch {
-    return null;
+    return { albumUrl: null, genreSlug: null };
   }
 }
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>vinyl room</title>
-    <meta name="description" content="One fresh record a day, with an archive of every pick." />
+    <meta name="description" content="One fresh record a day, picked from what music writers are excited about this week." />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💿</text></svg>" />
     <script>
       // Pick the look before first paint: ?look=… wins, then the last one used.
@@ -24,7 +24,7 @@
       <p class="tagline">one fresh record a day</p>
       <nav class="mainnav" aria-label="Main">
         <a href="#" data-today>today</a>
-        <a href="#archive" data-scroll="archive">archive</a>
+        <a href="#history" data-scroll="history">history</a>
         <a href="#about" data-scroll="about">about</a>
       </nav>
     </header>
@@ -51,9 +51,9 @@
       <div class="post-body" id="post-body"></div>
       <nav class="post-nav" id="post-nav" aria-label="Other days"></nav>
 
-      <section class="archive" id="archive" aria-labelledby="archive-h">
-        <h2 id="archive-h">archive</h2>
-        <ol id="archive-list"></ol>
+      <section class="archive" id="history" aria-labelledby="history-h">
+        <h2 id="history-h">history</h2>
+        <div id="archive-list"></div>
       </section>
 
       <div class="collage" id="collage" aria-hidden="true"></div>
@@ -61,10 +61,8 @@
 
     <footer class="foot" id="about">
       <p>
-        Every morning this page picks one fresh album from what <a href="https://daily.bandcamp.com" rel="noopener">Bandcamp Daily</a>,
-        <a href="https://www.stereogum.com" rel="noopener">Stereogum</a> and
-        <a href="https://www.youtube.com/@theneedledrop" rel="noopener">The Needle Drop</a> recommended in the last two weeks. Albums more
-        than one of them liked win, and nothing repeats. Covers and tracklists come from MusicBrainz.
+        One fresh record a day, picked from what music writers are excited about this week. Albums that several of them liked win, and
+        nothing repeats.
       </p>
       <p class="looks">
         look:

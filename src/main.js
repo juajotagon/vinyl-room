@@ -1,7 +1,7 @@
 // Page logic: load the archive and the day's pick, render the text right away,
 // then load the 3D record (three.js is most of the bundle) in the background.
 import { loadArchive, loadPick, loadFallbackAlbum, placeholderAlbum, paletteFrom } from './art.js';
-import { renderPick } from './ui.js';
+import { renderPick, setGenre } from './ui.js';
 import './style.css';
 
 const canvasEl = document.getElementById('scene');
@@ -46,9 +46,13 @@ const neighbour = (step) => {
 // Input
 // ---------------------------------------------------------------------------
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-date], [data-today], [data-nav], [data-action], [data-scroll], [data-look]');
+  const t = e.target.closest('[data-genre], [data-date], [data-today], [data-nav], [data-action], [data-scroll], [data-look]');
   if (!t) return;
-  if (t.dataset.date) {
+  if (t.dataset.genre !== undefined) {
+    e.preventDefault();
+    setGenre(t.dataset.genre);
+    document.getElementById('history').scrollIntoView({ behavior: 'smooth' });
+  } else if (t.dataset.date) {
     e.preventDefault();
     go(t.dataset.date);
     document.querySelector('.page').scrollIntoView({ behavior: 'smooth' });

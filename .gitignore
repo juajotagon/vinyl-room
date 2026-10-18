@@ -3,3 +3,4 @@ dist/
 .claude/
 # Daily picks written by `npm run pick` in dev.
 public/data/
+research_notes/

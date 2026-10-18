@@ -1,5 +1,5 @@
 /* JOURNAL: a personal blog post. Warm paper, serif text, a gradient band
-   from the cover up top, and the sources laid out like forum replies. */
+   from the cover up top. */
 [data-look='journal'] {
   --paper: #f8f6f1;
   --card: #fff;
@@ -100,65 +100,6 @@
   color: var(--dim);
   padding: 0 6px;
 }
-[data-look='journal'] .lede {
-  font-size: 20px;
-  line-height: 1.6;
-}
-[data-look='journal'] .lede::first-letter {
-  float: left;
-  font: 700 64px/0.82 var(--serif);
-  margin: 6px 8px 0 0;
-  color: var(--acc);
-}
-[data-look='journal'] .post-body h2,
-[data-look='journal'] .archive h2 {
-  font: 600 13px var(--sans);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--dim);
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 8px;
-}
-[data-look='journal'] .sources li {
-  align-items: flex-start;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 12px;
-}
-[data-look='journal'] .avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--g2);
-  color: #fff;
-  font-family: var(--sans);
-}
-[data-look='journal'] .sources a {
-  flex-direction: column;
-  gap: 0;
-  color: var(--ink);
-  font: 16px var(--sans);
-}
-[data-look='journal'] .sources .label {
-  color: var(--dim);
-  font-size: 14px;
-}
-[data-look='journal'] .sources .label::before {
-  content: 'recommended it as ';
-}
-[data-look='journal'] .pill {
-  font: 600 15px var(--sans);
-}
-[data-look='journal'] .pill::before {
-  content: '→ ';
-}
-[data-look='journal'] .tracks {
-  font-size: 17px;
-}
-[data-look='journal'] .tracks li::marker {
-  color: var(--dim);
-}
 [data-look='journal'] .post-nav {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -172,33 +113,6 @@
   font-size: 13px;
   color: var(--dim);
 }
-[data-look='journal'] .archive h2::before {
-  content: 'past ';
-}
-[data-look='journal'] .archive a {
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--line);
-  color: var(--ink);
-  font: 15px var(--sans);
-}
-[data-look='journal'] .archive a.current strong {
-  color: var(--acc);
-}
-[data-look='journal'] .archive .num {
-  display: none;
-}
-[data-look='journal'] .archive a {
-  grid-template-columns: auto 1fr auto;
-}
-[data-look='journal'] .archive img,
-[data-look='journal'] .archive .nocover {
-  border-radius: 3px;
-}
-[data-look='journal'] .archive .what span,
-[data-look='journal'] .archive time {
-  color: var(--dim);
-  font-size: 13px;
-}
 [data-look='journal'] .foot {
   margin-top: 48px;
   padding-top: 20px;
@@ -206,4 +120,92 @@
   border-top: 1px solid var(--line);
   font: 14px/1.6 var(--sans);
   color: var(--dim);
+}
+
+[data-look='journal'] .tags {
+  margin-top: 14px;
+}
+[data-look='journal'] .tag {
+  padding: 3px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--dim);
+  font: 14px var(--sans);
+}
+[data-look='journal'] .tag:hover {
+  color: var(--acc);
+  border-color: var(--acc);
+}
+[data-look='journal'] .tag.primary {
+  background: var(--acc);
+  border-color: var(--acc);
+  color: #fff;
+  font-weight: 600;
+}
+[data-look='journal'] .listen {
+  font: 600 16px var(--sans);
+}
+[data-look='journal'] .listen::before {
+  content: '→ ';
+}
+[data-look='journal'] .archive h2 {
+  font: 600 13px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+[data-look='journal'] .month h3 {
+  font: italic 700 22px var(--serif);
+}
+[data-look='journal'] .chip-f {
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font: 14px var(--sans);
+}
+[data-look='journal'] .chip-f:hover {
+  border-color: var(--acc);
+}
+[data-look='journal'] .chip-f.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+[data-look='journal'] .frow.sub .chip-f.on {
+  background: var(--acc);
+  border-color: var(--acc);
+}
+[data-look='journal'] .row {
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+  font: 15px var(--sans);
+}
+[data-look='journal'] .row > a {
+  color: var(--ink);
+}
+[data-look='journal'] .row.current strong {
+  color: var(--acc);
+}
+[data-look='journal'] .row .tag {
+  font-size: 12px;
+  padding: 2px 9px;
+}
+[data-look='journal'] .row time,
+[data-look='journal'] .archive .what span {
+  color: var(--dim);
+  font-size: 13px;
+}
+[data-look='journal'] .archive img,
+[data-look='journal'] .archive .nocover {
+  border-radius: 3px;
+  background: var(--line);
+}
+[data-look='journal'] .empty-note {
+  color: var(--dim);
+  font: italic 16px var(--serif);
 }
