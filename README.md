@@ -31,8 +31,23 @@ the description is built from the sources' own one-line summaries.
 Data lives in `DATA_DIR`:
 
 - `archive.json`: every day, newest first
-- `picks/<date>.json`: the full pick (sources, links, description, tracklist)
-- `covers/<date>.jpg`
+- `picks/<date>.json`: the full pick (sources, links, tracklist)
+- `catalogue.json`: the back catalogue, newest first. Build it with
+  `node scripts/picker/seed.mjs catalogue` (reads `seed/tagged.jsonl`). When a
+  day has no fresh candidates, the picker takes an album from here that was
+  never picked (`fromCatalogue: true`).
+- `seed/`: seed run files (`candidates.json`, `tagged.jsonl`, `og-images.json`)
+
+The server stores no cover images. Picks, archive and catalogue entries have
+`covers: [url, ...]`, remote image URLs with the best first (Cover Art Archive,
+then Bandcamp). The page loads them through `GET /cover?u=<encoded url>`, a
+pass-through proxy (no disk storage) that adds CORS headers, which the WebGL
+record needs. It only allows https URLs on `coverartarchive.org`,
+`*.archive.org` and `*.bcbits.com`, and caps images at 5 MB. The code is in
+`server/cover-proxy.mjs`; `npm run dev` has the same route through a Vite plugin.
+
+To convert old data (`cover: "covers/<date>.jpg"`), run
+`node scripts/picker/pick.mjs --migrate-covers`. It also deletes `covers/`.
 
 ## Run it locally
 
@@ -80,3 +95,4 @@ Set the image in `k8s/kustomization.yaml`, then `kubectl apply -k k8s/`.
 - `src/looks/` the three looks (player, journal, collage)
 - `scripts/picker/` sources, scoring, enrichment, description, CLI
 - `server/index.mjs` static server, `/healthz` and the daily schedule
+- `server/cover-proxy.mjs` the `/cover` image proxy

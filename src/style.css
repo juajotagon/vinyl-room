@@ -222,6 +222,34 @@ img {
   flex-wrap: wrap;
   gap: 6px;
 }
+.tabs {
+  margin-bottom: 14px;
+}
+.tabs .chip-f {
+  font-weight: 700;
+}
+.more {
+  display: block;
+  margin: 18px auto 8px;
+  padding: 8px 18px;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+}
+.more:hover {
+  opacity: 1;
+}
+.more[hidden] {
+  display: none;
+}
+.from-cat {
+  opacity: 0.7;
+  font-style: italic;
+}
 .month h3 {
   margin: 22px 0 6px;
   font-size: 1em;

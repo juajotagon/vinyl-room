@@ -5,16 +5,19 @@
 //   node scripts/picker/pick.mjs --backfill 7    # the last 7 days, oldest first
 //   node scripts/picker/pick.mjs --force         # redo a day that already has a pick
 //   node scripts/picker/pick.mjs --retag         # redo genre tags for existing picks (same albums)
+//   node scripts/picker/pick.mjs --migrate-covers  # old `cover` file fields -> `covers` URLs, delete covers/
 //
 // Output (DATA_DIR, default public/data):
-//   archive.json          newest first: [{ date, artist, album, year, cover, genres }]
+//   archive.json          newest first: [{ date, artist, album, year, covers, genres, fromCatalogue? }]
 //   picks/<date>.json     everything about that day's pick
-//   covers/<date>.jpg
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+//   catalogue.json        back catalogue (see seed.mjs catalogue), used when nothing fresh is left
+// Cover images are never stored: `covers` is a list of remote URLs, best first.
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { albumKey, collectCandidates, fetchBandcampArticle } from './sources.mjs';
 import { enrich } from './enrich.mjs';
+import { caaUrl, coverList, ogImage } from './covers.mjs';
 import { mergeUnmatched, tagAlbum } from './genres.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -68,9 +71,90 @@ const archiveEntry = (p) => ({
   artist: p.artist,
   album: p.album,
   year: p.year,
-  cover: p.cover,
+  covers: p.covers ?? [],
   genres: { primary: p.genres.primary, secondary: p.genres.secondary, subgenres: p.genres.subgenres },
+  ...(p.fromCatalogue ? { fromCatalogue: true } : {}),
 });
+
+// Picks an album nobody has been shown yet from the back catalogue. Prefers
+// ones with covers, and a primary genre unlike the last 3 picks.
+function chooseFromCatalogue(catalogue, archive, date) {
+  const shown = new Set(archive.map((e) => albumKey(e.artist, e.album)));
+  const recent = archive.filter((e) => e.date < date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+  const recentGenres = new Set(recent.map((e) => e.genres?.primary).filter(Boolean));
+  const fresh = catalogue.filter((a) => a.genres?.primary && !shown.has(a.key) && !shown.has(albumKey(a.artist, a.album)));
+  const tiers = [
+    (a) => a.covers?.length && !recentGenres.has(a.genres.primary),
+    (a) => a.covers?.length,
+    (a) => !recentGenres.has(a.genres.primary),
+    () => true,
+  ];
+  for (const ok of tiers) {
+    const pool = fresh.filter(ok);
+    if (pool.length) return pool[Math.floor(Math.random() * pool.length)];
+  }
+  return null;
+}
+
+async function pickFromCatalogue(date, archive, log) {
+  const catalogue = await readJson(join(DATA_DIR, 'catalogue.json'), []);
+  const c = chooseFromCatalogue(catalogue, archive, date);
+  if (!c) return null;
+  log.info(`[pick] ${date}: nothing fresh, from the catalogue: ${c.artist} — ${c.album}`);
+  let details = null;
+  try {
+    details = await enrich({ artist: c.artist, album: c.album }, log);
+  } catch (err) {
+    log.warn(`[pick] catalogue enrich failed: ${err.message}`);
+  }
+  return {
+    date,
+    artist: c.artist,
+    album: c.album,
+    year: c.year ?? details?.year ?? null,
+    tracklist: details?.tracklist ?? [],
+    covers: c.covers?.length ? c.covers : (details?.covers ?? []),
+    fromCatalogue: true,
+    firstRecommended: c.first,
+    sources: [],
+    links: { ...(details?.links ?? {}), ...c.links },
+    genres: { ...c.genres, confidence: 'medium', by: 'catalogue' },
+  };
+}
+
+// Rewrites old `cover: "covers/<date>.jpg"` fields as `covers: [url, ...]` and
+// removes the stored images.
+export async function migrateCovers(log = console) {
+  const archivePath = join(DATA_DIR, 'archive.json');
+  const archive = await readJson(archivePath, []);
+  for (const entry of archive) {
+    const pickPath = join(DATA_DIR, 'picks', `${entry.date}.json`);
+    const pick = await readJson(pickPath, null);
+    if (!pick) continue;
+    if (!pick.covers?.length) {
+      const bandcamp = pick.links?.bandcamp ? await ogImagePolite(pick.links.bandcamp) : null;
+      pick.covers = coverList(caaUrl(pick.mbid), bandcamp);
+    }
+    delete pick.cover;
+    await writeAtomic(pickPath, JSON.stringify(pick, null, 2) + '\n');
+    delete entry.cover;
+    entry.covers = pick.covers;
+    log.info(`[migrate] ${entry.date}: ${pick.covers.length} cover URL(s)`);
+  }
+  await writeAtomic(archivePath, JSON.stringify(archive, null, 2) + '\n');
+  await rm(join(DATA_DIR, 'covers'), { recursive: true, force: true });
+}
+
+let lastOg = 0;
+async function ogImagePolite(url) {
+  const wait = lastOg + 1500 - Date.now();
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  try {
+    return await ogImage(url);
+  } finally {
+    lastOg = Date.now();
+  }
+}
 
 // Runs the genre tagger and stores the result on the pick.
 async function applyTags(pick, { bandcampGenreSlug = null } = {}, log = console) {
@@ -132,7 +216,12 @@ export async function pickDay(date = today(), { force = false, candidates, log =
   const shown = new Set(archive.map((e) => albumKey(e.artist, e.album)));
   candidates ??= await collectCandidates(log);
   const ranked = rank(candidates, date, shown);
-  if (!ranked.length) throw new Error(`no fresh candidates for ${date}`);
+  if (!ranked.length) {
+    const pick = await pickFromCatalogue(date, archive, log);
+    if (!pick) throw new Error(`no fresh candidates for ${date}, and nothing left in the catalogue`);
+    pick.pickedAt = new Date().toISOString();
+    return savePick(pick, archive, pickPath);
+  }
 
   const best = ranked[0];
   // Name it the way the most trusted (highest weight) source wrote it.
@@ -158,7 +247,7 @@ export async function pickDay(date = today(), { force = false, candidates, log =
     year: details.year,
     mbid: details.mbid,
     tracklist: details.tracklist,
-    cover: null,
+    covers: details.covers,
     sources: best.mentions.map((m) => ({
       name: m.sourceName,
       label: m.label,
@@ -169,13 +258,16 @@ export async function pickDay(date = today(), { force = false, candidates, log =
     links: Object.fromEntries(Object.entries(links).filter(([, v]) => v)),
   };
 
-  if (details.cover) {
-    pick.cover = `covers/${date}.jpg`;
-    await writeAtomic(join(DATA_DIR, pick.cover), details.cover);
+  if (bandcampUrl && !pick.covers.some((u) => !u.includes('coverartarchive.org'))) {
+    const img = await ogImage(bandcampUrl);
+    pick.covers = coverList(pick.covers, img);
   }
   await applyTags(pick, { bandcampGenreSlug: genreSlug }, log);
   pick.pickedAt = new Date().toISOString();
+  return savePick(pick, archive, pickPath);
+}
 
+async function savePick(pick, archive, pickPath) {
   await writeAtomic(pickPath, JSON.stringify(pick, null, 2) + '\n');
   archive.push(archiveEntry(pick));
   archive.sort((a, b) => b.date.localeCompare(a.date));
@@ -193,7 +285,9 @@ async function main() {
   const backfill = Number(opt('--backfill') ?? 0);
   const date = opt('--date') ?? today();
 
-  if (args.includes('--retag')) {
+  if (args.includes('--migrate-covers')) {
+    await migrateCovers();
+  } else if (args.includes('--retag')) {
     await retagAll();
   } else if (backfill > 0) {
     // Fetch the feeds once and replay them day by day.

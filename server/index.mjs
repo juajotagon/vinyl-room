@@ -1,11 +1,12 @@
 // Serves the built site and the daily-pick data, and runs the picker once a
-// day. One process, one volume: simple to run as a single k8s Deployment.
+// day, and proxies cover images (GET /cover?u=...). One process, one volume: simple to run as a single k8s Deployment.
 //
 //   PORT=8080 DIST_DIR=dist DATA_DIR=/data PICK_TIME=06:00 TZ=Europe/Madrid node server/index.mjs
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
+import { handleCover } from './cover-proxy.mjs';
 import { DATA_DIR, pickDay, today } from '../scripts/picker/pick.mjs';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -57,12 +58,12 @@ const server = createServer(async (req, res) => {
     return res.end(JSON.stringify({ ok: true, today: today(), ...state }));
   }
 
+  if (path === '/cover') return handleCover(req, res);
+
   let ok = false;
   if (path.startsWith('/data/')) {
     const file = safePath(DATA_DIR, path.slice('/data'.length));
-    // Covers never change for a given date; the archive and picks can.
-    const cache = path.startsWith('/data/covers/') ? 'public, max-age=31536000, immutable' : 'no-cache';
-    ok = file ? await sendFile(res, file, cache) : false;
+    ok = file ? await sendFile(res, file, 'no-cache') : false;
   } else {
     const file = safePath(DIST_DIR, path === '/' ? '/index.html' : path);
     const cache = path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache';

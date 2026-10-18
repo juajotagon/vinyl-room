@@ -1,7 +1,7 @@
-// Fills in cover art, tracklist and year for a picked album.
-// MusicBrainz + Cover Art Archive first (no key), Discogs if DISCOGS_TOKEN is
-// set, and finally whatever image the source feed had.
+// Fills in cover URLs, tracklist and year for a picked album.
+// MusicBrainz first (no key), Discogs if DISCOGS_TOKEN is set.
 import { get } from './http.mjs';
+import { caaUrl, coverList } from './covers.mjs';
 
 const MB = 'https://musicbrainz.org/ws/2';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -43,10 +43,6 @@ async function musicBrainz(artist, album) {
     year: rg['first-release-date']?.slice(0, 4) || null,
     type: rg['primary-type'] ?? null,
     tracklist: release ? release.media.flatMap((m) => (m.tracks ?? []).map((t) => t.title)) : [],
-    coverUrls: [
-      `https://coverartarchive.org/release-group/${rg.id}/front-1200`,
-      `https://coverartarchive.org/release-group/${rg.id}/front-500`,
-    ],
   };
 }
 
@@ -59,33 +55,18 @@ async function discogs(artist, album, token) {
   const hit = search.results?.[0];
   if (!hit) return null;
   const master = await get(`https://api.discogs.com/masters/${hit.id}`, { headers: auth, as: 'json' });
-  const front = (master.images ?? []).find((i) => i.type === 'primary') ?? master.images?.[0];
   return {
     discogs: master.uri,
     year: master.year ? String(master.year) : null,
     tracklist: (master.tracklist ?? []).filter((t) => t.type_ === 'track').map((t) => t.title),
-    coverUrls: front ? [front.uri] : [],
-    coverHeaders: auth,
   };
 }
 
-async function firstImage(urls, headers) {
-  for (const url of urls.filter(Boolean)) {
-    try {
-      const buf = await get(url, { headers, as: 'buffer', tries: 2 });
-      if (buf.length > 1000) return buf;
-    } catch {
-      // try the next one
-    }
-  }
-  return null;
-}
-
-// Returns { year, tracklist, mbid, bandcampUrl, links: {...}, cover: Buffer|null }
-// Second argument: a logger, or options { log, cover: false } to skip cover downloads.
+// Returns { year, tracklist, mbid, bandcampUrl, links: {...}, covers: [url] }
+// `covers` are remote image URLs, best first (Cover Art Archive, then the feed image).
+// Second argument: a logger, or options { log }. Nothing is downloaded.
 export async function enrich({ artist, album, images = [] }, opts = console) {
   const log = typeof opts.warn === 'function' ? opts : (opts.log ?? console);
-  const wantCover = opts.cover !== false;
   const found = [];
   try {
     const mb = await musicBrainz(artist, album);
@@ -102,16 +83,6 @@ export async function enrich({ artist, album, images = [] }, opts = console) {
     }
   }
 
-  let cover = null;
-  if (wantCover) {
-    for (const f of found) {
-      cover = await firstImage(f.coverUrls, f.coverHeaders);
-      if (cover) break;
-    }
-    // Bandcamp Daily feed images are the album art at full size.
-    cover ??= await firstImage(images);
-  }
-
   return {
     year: found.find((f) => f.year)?.year ?? null,
     tracklist: found.find((f) => f.tracklist?.length)?.tracklist ?? [],
@@ -122,6 +93,6 @@ export async function enrich({ artist, album, images = [] }, opts = console) {
         ([, v]) => v,
       ),
     ),
-    cover,
+    covers: coverList(caaUrl(found.find((f) => f.mbid)?.mbid), images),
   };
 }

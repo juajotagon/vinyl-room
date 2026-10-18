@@ -5,6 +5,7 @@
 //   node scripts/picker/seed.mjs collect [--since 2024-10-01]
 //   node scripts/picker/seed.mjs tag [--limit N] [--source bandcamp-daily|stereogum|needle-drop]
 //   node scripts/picker/seed.mjs summary
+//   node scripts/picker/seed.mjs catalogue [--all-bandcamp]   # builds <DATA_DIR>/catalogue.json from tagged.jsonl
 //
 // Output (DATA_DIR, default public/data) in <DATA_DIR>/seed/:
 //   candidates.json, tagged.jsonl, summary.json, summary.md, genre-unmatched.json
@@ -14,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { decode, get, parseFeed, stripTags } from './http.mjs';
 import { SOURCES, albumKey, fetchBandcampArticle } from './sources.mjs';
 import { enrich } from './enrich.mjs';
+import { caaUrl, coverList, ogImage } from './covers.mjs';
 import { mergeUnmatched, tagAlbum } from './genres.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -286,7 +288,7 @@ async function tag(args) {
         await politeWait();
         article = await fetchBandcampArticle(daily.url, g.album);
       }
-      const details = await enrich({ artist: g.artist, album: g.album }, { cover: false });
+      const details = await enrich({ artist: g.artist, album: g.album }, {});
       const bandcampUrl = article.albumUrl ?? details.bandcampUrl ?? null;
       if (bandcampUrl) await politeWait(); // tagAlbum fetches the Bandcamp album page
       const genres = await tagAlbum({
@@ -399,13 +401,57 @@ async function summary() {
   console.log(`Wrote ${join(SEED_DIR, 'summary.json')} and summary.md`);
 }
 
+// --- catalogue ----------------------------------------------------------------
+
+// Builds catalogue.json, the back catalogue the picker falls back on and the
+// site shows. Covers are URLs only: Cover Art Archive when we have an mbid,
+// else the Bandcamp page's og:image (looked up once, cached in seed/og-images.json).
+// --all-bandcamp also looks up Bandcamp images for albums that have an mbid.
+async function catalogue(args) {
+  const rows = (await readTagged()).filter((r) => {
+    const [artist, album] = r.key.split('|');
+    return r.genres?.primary && r.key !== '|' && artist && album && r.artist?.trim() && r.album?.trim();
+  });
+  const cachePath = join(SEED_DIR, 'og-images.json');
+  const cache = await readJson(cachePath, {});
+  let fetched = 0;
+  const out = [];
+  for (const r of rows) {
+    let bandcamp = null;
+    if (r.bandcampUrl && (!r.mbid || args['all-bandcamp'])) {
+      if (!(r.bandcampUrl in cache)) {
+        await politeWait();
+        cache[r.bandcampUrl] = await ogImage(r.bandcampUrl);
+        fetched++;
+        if (fetched % 10 === 0) await writeAtomic(cachePath, JSON.stringify(cache, null, 2) + '\n');
+      }
+      bandcamp = cache[r.bandcampUrl];
+    }
+    out.push({
+      key: r.key,
+      artist: r.artist,
+      album: r.album,
+      year: r.year,
+      genres: { primary: r.genres.primary, secondary: r.genres.secondary, subgenres: r.genres.subgenres },
+      covers: coverList(caaUrl(r.mbid), bandcamp),
+      first: r.published,
+      links: r.bandcampUrl ? { bandcamp: r.bandcampUrl } : {},
+    });
+  }
+  await writeAtomic(cachePath, JSON.stringify(cache, null, 2) + '\n');
+  out.sort((a, b) => b.first.localeCompare(a.first) || a.key.localeCompare(b.key));
+  await writeAtomic(join(DATA_DIR, 'catalogue.json'), JSON.stringify(out, null, 2) + '\n');
+  const withCovers = out.filter((a) => a.covers.length).length;
+  console.log(`[catalogue] ${out.length} albums (${(await readTagged()).length - out.length} skipped), ${withCovers} with covers, ${out.length - withCovers} without; ${fetched} Bandcamp pages fetched`);
+}
+
 // --- main ---------------------------------------------------------------------
 
 const args = parseArgs(process.argv.slice(2));
 const cmd = args._[0];
-const commands = { collect, tag, summary };
+const commands = { collect, tag, summary, catalogue };
 if (!commands[cmd]) {
-  console.error('Usage: node scripts/picker/seed.mjs collect [--since YYYY-MM-DD] | tag [--limit N] [--source S] | summary');
+  console.error('Usage: node scripts/picker/seed.mjs collect [--since YYYY-MM-DD] | tag [--limit N] [--source S] | summary | catalogue');
   process.exit(1);
 }
 commands[cmd](args).catch((err) => {

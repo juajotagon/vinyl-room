@@ -1,7 +1,7 @@
 // Page logic: load the archive and the day's pick, render the text right away,
 // then load the 3D record (three.js is most of the bundle) in the background.
-import { loadArchive, loadPick, loadFallbackAlbum, placeholderAlbum, paletteFrom } from './art.js';
-import { renderPick, setGenre } from './ui.js';
+import { loadArchive, loadPick, loadCatalogue, loadCatalogueAlbum, loadFallbackAlbum, placeholderAlbum, paletteFrom } from './art.js';
+import { renderPick, renderCatalogueAlbum, catalogueShown, setGenre, setCatalogue } from './ui.js';
 import './style.css';
 
 const canvasEl = document.getElementById('scene');
@@ -10,11 +10,13 @@ const hintEl = document.getElementById('hint');
 let scene = null;
 let album = placeholderAlbum();
 let archive = [];
+let catalogue = [];
 let showing = null;
 
-function show(pick) {
+function show(pick, cat = null) {
   album = pick;
-  renderPick(pick, archive);
+  if (cat) renderCatalogueAlbum(pick, cat);
+  else renderPick(pick, archive);
   document.title = `${pick.album} – ${pick.artist} · vinyl room`;
   // Page colours follow the cover (animated in CSS).
   paletteFrom(pick.front).forEach((c, i) => document.documentElement.style.setProperty(`--g${i + 1}`, c));
@@ -24,21 +26,53 @@ function show(pick) {
 async function showDate(date) {
   if (!archive.length) return;
   const entry = archive.find((e) => e.date === date) ?? archive[0];
-  if (entry.date === showing) return;
-  showing = entry.date;
+  if (`d:${entry.date}` === showing) return;
+  showing = `d:${entry.date}`;
   try {
     const pick = await loadPick(entry.date);
-    if (showing === entry.date) show(pick); // ignore if a newer navigation won
+    if (showing === `d:${entry.date}`) show(pick); // ignore if a newer navigation won
   } catch (err) {
     console.warn(`[pick] ${entry.date}: ${err.message}`);
   }
+}
+
+// The list older/newer step through while a catalogue album is open: the
+// catalogue as filtered in the history list (the whole catalogue if the album
+// is outside the filter).
+const catList = (key) => {
+  const f = catalogueShown();
+  return f.some((a) => a.key === key) ? f : catalogue;
+};
+
+async function showKey(key) {
+  const entry = catalogue.find((e) => e.key === key);
+  if (!entry) return showDate(null);
+  if (`c:${key}` === showing) return;
+  showing = `c:${key}`;
+  const full = await loadCatalogueAlbum(entry);
+  if (showing === `c:${key}`) show(full, catList(key));
+}
+
+function route() {
+  const h = location.hash;
+  if (h.startsWith('#c/')) {
+    try {
+      return showKey(decodeURIComponent(h.slice(3)));
+    } catch {}
+  }
+  return showDate(h.match(/\d{4}-\d{2}-\d{2}/)?.[0]);
 }
 
 const go = (date) => {
   if (date) location.hash = date;
 };
 const neighbour = (step) => {
-  const i = archive.findIndex((a) => a.date === showing);
+  if (showing?.startsWith('c:')) {
+    const list = catList(showing.slice(2));
+    const a = list[list.findIndex((x) => x.key === showing.slice(2)) + step];
+    return a && `c/${encodeURIComponent(a.key)}`;
+  }
+  const i = archive.findIndex((a) => `d:${a.date}` === showing);
   return archive[i + step]?.date; // archive is newest first
 };
 
@@ -46,7 +80,7 @@ const neighbour = (step) => {
 // Input
 // ---------------------------------------------------------------------------
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-genre], [data-date], [data-today], [data-nav], [data-action], [data-scroll], [data-look]');
+  const t = e.target.closest('[data-genre], [data-date], [data-key], [data-today], [data-nav], [data-action], [data-scroll], [data-look]');
   if (!t) return;
   if (t.dataset.genre !== undefined) {
     e.preventDefault();
@@ -55,6 +89,10 @@ document.addEventListener('click', (e) => {
   } else if (t.dataset.date) {
     e.preventDefault();
     go(t.dataset.date);
+    document.querySelector('.page').scrollIntoView({ behavior: 'smooth' });
+  } else if (t.dataset.key) {
+    e.preventDefault();
+    go(`c/${encodeURIComponent(t.dataset.key)}`);
     document.querySelector('.page').scrollIntoView({ behavior: 'smooth' });
   } else if (t.dataset.today !== undefined) {
     e.preventDefault();
@@ -86,14 +124,15 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-window.addEventListener('hashchange', () => showDate(location.hash.match(/\d{4}-\d{2}-\d{2}/)?.[0]));
+window.addEventListener('hashchange', route);
 
 // ---------------------------------------------------------------------------
 // Boot: text first, record second.
 // ---------------------------------------------------------------------------
 async function boot() {
-  archive = await loadArchive();
-  if (archive.length) await showDate(location.hash.match(/\d{4}-\d{2}-\d{2}/)?.[0]);
+  [archive, catalogue] = await Promise.all([loadArchive(), loadCatalogue()]);
+  setCatalogue(catalogue, archive);
+  if (archive.length || catalogue.length) await route();
   else show(await loadFallbackAlbum()); // fresh checkout: Demon Days
 }
 

@@ -49,10 +49,37 @@ export async function loadArchive() {
   }
 }
 
+// Remote cover URLs, best first. Old entries only have `cover` (a file in data/).
+export const coversOf = (entry) => (entry?.covers?.length ? entry.covers : entry?.cover ? [`data/${entry.cover}`] : []);
+
+// Anything drawn into canvas/WebGL goes through the CORS image proxy.
+const viaProxy = (u) => (/^https?:/.test(u) ? `/cover?u=${encodeURIComponent(u)}` : u);
+
+// First cover that loads, or null (placeholder sleeve).
+async function firstImage(entry) {
+  for (const u of coversOf(entry)) {
+    const img = await tryImage(viaProxy(u));
+    if (img) return img;
+  }
+  return null;
+}
+
 export async function loadPick(date) {
   const pick = await getJson(`data/picks/${date}.json`);
-  const front = await tryImage(pick.cover && `data/${pick.cover}`);
-  return { ...pick, front, back: null, label: null };
+  return { ...pick, front: await firstImage(pick), back: null, label: null };
+}
+
+// Past albums, newest first. Empty when there is no catalogue yet.
+export async function loadCatalogue() {
+  try {
+    return await getJson('data/catalogue.json');
+  } catch {
+    return [];
+  }
+}
+
+export async function loadCatalogueAlbum(entry) {
+  return { ...entry, front: await firstImage(entry), back: null, label: null };
 }
 
 // The CAA JSON index redirects to archive.org without CORS headers, but the
