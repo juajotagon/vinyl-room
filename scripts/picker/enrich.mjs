@@ -82,7 +82,10 @@ async function firstImage(urls, headers) {
 }
 
 // Returns { year, tracklist, mbid, bandcampUrl, links: {...}, cover: Buffer|null }
-export async function enrich({ artist, album, images = [] }, log = console) {
+// Second argument: a logger, or options { log, cover: false } to skip cover downloads.
+export async function enrich({ artist, album, images = [] }, opts = console) {
+  const log = typeof opts.warn === 'function' ? opts : (opts.log ?? console);
+  const wantCover = opts.cover !== false;
   const found = [];
   try {
     const mb = await musicBrainz(artist, album);
@@ -100,12 +103,14 @@ export async function enrich({ artist, album, images = [] }, log = console) {
   }
 
   let cover = null;
-  for (const f of found) {
-    cover = await firstImage(f.coverUrls, f.coverHeaders);
-    if (cover) break;
+  if (wantCover) {
+    for (const f of found) {
+      cover = await firstImage(f.coverUrls, f.coverHeaders);
+      if (cover) break;
+    }
+    // Bandcamp Daily feed images are the album art at full size.
+    cover ??= await firstImage(images);
   }
-  // Bandcamp Daily feed images are the album art at full size.
-  cover ??= await firstImage(images);
 
   return {
     year: found.find((f) => f.year)?.year ?? null,
