@@ -1,8 +1,13 @@
 // Fills the page with the day's pick (title, genre tags, older/newer links),
-// the history list with its genre filter, and the collage of past covers.
+// the week strip, the crates wall with its genre filter, the full history list
+// and the collage of past covers.
 // Plain DOM, no framework, so the text is up before the 3D record loads.
 import { coversOf } from './art.js';
 import { tagsOf, hasGenres, resolveFilter, inFamily, inSub } from './genres.js';
+import { FAMILY, SUBGENRE } from '../scripts/picker/taxonomy.mjs';
+
+const FAMILY_NAME = (id) => FAMILY[id]?.name ?? id;
+const SUBGENRE_NAME = (id) => SUBGENRE[id]?.name ?? id;
 
 const el = (tag, { dataset, ...props } = {}, ...children) => {
   const node = Object.assign(document.createElement(tag), props);
@@ -23,20 +28,53 @@ const tag = (t, extra = '') =>
   el('button', { type: 'button', className: `tag ${t.kind} ${extra}`.trim(), textContent: t.name, dataset: { genre: t.id }, title: `Show ${t.name} picks` });
 
 // ---------------------------------------------------------------------------
-// History state: the daily archive, the catalogue, which one is showing, the
-// genre filter (?genre=<familyId|subgenreId>) and the tab (?view=catalogue).
-// Both are kept in the URL with replaceState.
+// Page state: the daily archive, the catalogue, and the crates (both merged,
+// one entry per album, daily picks winning). The genre filter lives in the URL
+// as ?genre=<familyId|subgenreId> (kept with replaceState).
 // ---------------------------------------------------------------------------
-const PAGE = 60; // catalogue/archive rows rendered per chunk
+const CHUNK = 60; // tiles per chunk of the wall
+const WEEK = 7;
 let archive = [];
 let catalogue = [];
-let current = null; // date of the daily pick showing
-let currentKey = null; // key of the catalogue album showing
-let view = new URLSearchParams(location.search).get('view') === 'catalogue' ? 'catalogue' : 'daily';
+let crates = []; // merged, newest first
+let current = null; // hash value of the album showing: "2026-10-18" or "c/<key>"
 let filter = resolveFilter(new URLSearchParams(location.search).get('genre'));
+let observer = null;
 
-const activeView = () => (view === 'catalogue' && catalogue.length ? 'catalogue' : 'daily');
-const keyHref = (k) => `#c/${encodeURIComponent(k)}`;
+// Same normalisation as albumKey() in scripts/picker/sources.mjs.
+const slug = (s) =>
+  s
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+const norm = (s) =>
+  slug(s.replace(/\((deluxe|expanded|remaster(ed)?)[^)]*\)/gi, ''))
+    .replace(/^the-/, '')
+    .replace(/-/g, '');
+export const albumKey = (artist, album) => `${norm(artist)}|${norm(album)}`;
+
+// Where an entry lives in the URL hash.
+export const hashOf = (a) => (a.date ? a.date : `c/${encodeURIComponent(a.key)}`);
+
+function merge() {
+  const seen = new Set();
+  const out = [];
+  for (const a of archive) {
+    const key = a.key ?? albumKey(a.artist, a.album);
+    seen.add(key);
+    out.push({ ...a, key, daily: true });
+  }
+  for (const a of catalogue) {
+    if (seen.has(a.key) || seen.has(albumKey(a.artist, a.album))) continue;
+    out.push({ ...a, daily: false });
+  }
+  // newest first by the day it was picked / first recommended (stable)
+  out.sort((x, y) => (y.date ?? y.first ?? '').localeCompare(x.date ?? x.first ?? ''));
+  return out;
+}
 
 function setParam(name, value) {
   const url = new URL(location.href);
@@ -48,23 +86,30 @@ function setParam(name, value) {
 export function setGenre(id) {
   filter = resolveFilter(id);
   setParam('genre', filter?.id);
-  renderHistory();
-}
-
-export function setView(v) {
-  view = v === 'catalogue' ? 'catalogue' : 'daily';
-  setParam('view', view === 'catalogue' ? 'catalogue' : null);
-  renderHistory();
+  renderCrates();
 }
 
 export function setCatalogue(list, daily = archive) {
   archive = daily;
   catalogue = list;
+  crates = merge();
+  renderWeek();
+  renderCrates();
   renderHistory();
+  markCurrent();
 }
 
 const matches = (a) => (!filter ? true : filter.sub ? inSub(a, filter.sub) : inFamily(a, filter.family));
-export const catalogueShown = () => catalogue.filter(matches);
+// The albums in the current crate (what older/newer and the dice step through).
+export const cratesShown = () => crates.filter(matches);
+export const cratesAll = () => crates;
+
+// A random album from the current crate, as a hash value (or null).
+export function randomHash() {
+  const list = cratesShown().filter((a) => hashOf(a) !== current);
+  if (!list.length) return null;
+  return hashOf(list[Math.floor(Math.random() * list.length)]);
+}
 
 function chip(label, id, active, count) {
   return el(
@@ -73,13 +118,6 @@ function chip(label, id, active, count) {
     label,
     count != null && el('span', { className: 'n', textContent: count }),
   );
-}
-
-function tabs() {
-  if (!catalogue.length) return null;
-  const tab = (v, label) =>
-    el('button', { type: 'button', className: `chip-f tab${activeView() === v ? ' on' : ''}`, ariaPressed: String(activeView() === v), onclick: () => setView(v) }, label);
-  return el('div', { className: 'frow tabs', role: 'group', ariaLabel: 'History view' }, tab('daily', 'daily picks'), tab('catalogue', `catalogue (${catalogue.length})`));
 }
 
 function filterBar(list) {
@@ -111,70 +149,152 @@ function filterBar(list) {
   return bar;
 }
 
-// Thumbnail straight from its source (no proxy needed for <img>). If one URL
-// fails, try the next, then fall back to an empty square.
-function thumb(a) {
+// A cover straight from its source (no proxy needed for <img>). If one URL
+// fails, try the next; with none left, `onNone` gets the broken <img>.
+function coverImg(a, size, onNone) {
   const urls = coversOf(a);
-  if (!urls.length) return el('span', { className: 'nocover' });
+  if (!urls.length) return null;
   let i = 0;
-  const img = el('img', { src: urls[0], alt: '', loading: 'lazy', width: 44, height: 44, referrerPolicy: 'no-referrer' });
+  const img = el('img', { src: urls[0], alt: '', loading: 'lazy', decoding: 'async', width: size, height: size, referrerPolicy: 'no-referrer' });
   img.onerror = () => {
     if (++i < urls.length) img.src = urls[i];
-    else img.replaceWith(el('span', { className: 'nocover' }));
+    else onNone(img);
   };
   return img;
 }
 
-function row(a, kind) {
+function row(a) {
   const t = tagsOf(a.genres);
   const tags = [t.primary, ...t.subs].filter(Boolean).slice(0, 4);
-  const isCat = kind === 'catalogue';
+  const img = coverImg(a, 44, (i) => i.replaceWith(el('span', { className: 'nocover' }))) ?? el('span', { className: 'nocover' });
   return el(
     'li',
-    { className: `row${(isCat ? a.key === currentKey : a.date === current) ? ' current' : ''}` },
+    { className: 'row' },
     el(
       'a',
-      isCat ? { href: keyHref(a.key), dataset: { key: a.key } } : { href: `#${a.date}`, dataset: { date: a.date } },
-      isCat ? el('time', { textContent: a.year ?? '' }) : el('time', { dateTime: a.date, textContent: shortDate(a.date) }),
-      thumb(a),
+      { href: `#${a.date}`, dataset: { open: a.date } },
+      el('time', { dateTime: a.date, textContent: shortDate(a.date) }),
+      img,
       el('span', { className: 'what' }, el('strong', { textContent: a.album }), el('span', { textContent: a.artist })),
     ),
     tags.length > 0 && el('span', { className: 'tags' }, ...tags.map((x, n) => tag(x, n === 0 && x.kind === 'family' ? 'primary' : ''))),
   );
 }
 
-export function renderHistory() {
-  const kind = activeView();
-  const all = kind === 'catalogue' ? catalogue : archive;
-  const list = all.filter(matches);
-  const body = el('div', { className: 'hist-body', dataset: { view: kind } });
-  const moreBtn = el('button', { type: 'button', className: 'more' });
+// ---- this week: the last seven daily picks --------------------------------
+function renderWeek() {
+  const box = $('week-list');
+  if (!box) return;
+  box.replaceChildren(
+    ...archive.slice(0, WEEK).map((a, i) => {
+      const img = coverImg(a, 160, (im) => im.replaceWith(el('span', { className: 'nocover', textContent: `${a.artist} – ${a.album}` })));
+      return el(
+        'li',
+        {},
+        el(
+          'a',
+          { href: `#${a.date}`, className: `wk${i === 0 ? ' today' : ''}`, dataset: { open: a.date }, title: `${a.album} – ${a.artist}`, ariaLabel: `${a.album} by ${a.artist}, ${shortDate(a.date)}` },
+          el('span', { className: 'cv' }, img ?? el('span', { className: 'nocover', textContent: `${a.artist} – ${a.album}` })),
+          el('time', { dateTime: a.date, textContent: i === 0 ? 'today' : shortDate(a.date) }),
+        ),
+      );
+    }),
+  );
+}
 
+// ---- dig the crates: one wall, everything ---------------------------------
+function tile(a) {
+  const title = `${a.album} – ${a.artist}`;
+  const a_ = el(
+    'a',
+    { href: `#${hashOf(a)}`, className: `tile${a.daily ? ' pick' : ''}`, dataset: { open: hashOf(a) }, title, ariaLabel: `${title}${a.daily ? ' (pick of the day)' : ''}` },
+  );
+  const plain = () => {
+    a_.classList.add('plain');
+    a_.querySelector('img')?.remove();
+  };
+  const img = coverImg(a, 200, plain);
+  if (img) a_.append(img);
+  else a_.classList.add('plain');
+  a_.append(el('span', { className: 'cap' }, el('strong', { textContent: a.album }), el('span', { textContent: a.artist })));
+  if (a.daily) a_.append(el('span', { className: 'mark', textContent: '★ pick', title: 'pick of the day' }));
+  return a_;
+}
+
+function renderCrates() {
+  const box = $('crates-body');
+  if (!box) return;
+  observer?.disconnect();
+  const list = cratesShown();
+  const wall = el('div', { className: 'wall', id: 'crate-wall' });
+  const more = el('button', { type: 'button', className: 'more dig' });
+  let pos = 0;
+  const load = () => {
+    const end = Math.min(pos + CHUNK, list.length);
+    const frag = document.createDocumentFragment();
+    for (; pos < end; pos++) frag.append(tile(list[pos]));
+    wall.append(frag);
+    more.hidden = pos >= list.length;
+    more.textContent = `dig deeper (${list.length - pos} more)`;
+    markCurrent();
+  };
+  more.onclick = load;
+  load();
+  if ('IntersectionObserver' in window) {
+    observer = new IntersectionObserver((es) => es.some((e) => e.isIntersecting) && !more.hidden && load(), { rootMargin: '600px 0px' });
+    observer.observe(more);
+  }
+  box.replaceChildren(
+    ...[
+      filterBar(crates),
+      el('p', { className: 'crate-count', textContent: `${list.length} album${list.length === 1 ? '' : 's'}${filter ? ` in ${filter.sub ? SUBGENRE_NAME(filter.sub) : FAMILY_NAME(filter.family)}` : ' in the crates'}` }),
+      list.length === 0 && el('p', { className: 'empty-note', textContent: 'Nothing here yet.' }),
+      wall,
+      more,
+    ].filter(Boolean),
+  );
+}
+
+// ---- full history: month-grouped list of the daily picks --------------------
+function renderHistory() {
+  const box = $('archive-list');
+  if (!box) return;
+  const body = el('div', { className: 'hist-body' });
+  const moreBtn = el('button', { type: 'button', className: 'more' });
   let pos = 0;
   let lastMonth = null;
   let ol = null;
   const more = () => {
-    const end = Math.min(pos + PAGE, list.length);
+    const end = Math.min(pos + CHUNK, archive.length);
     for (; pos < end; pos++) {
-      const a = list[pos];
-      const m = monthName(kind === 'catalogue' ? a.first : a.date);
+      const a = archive[pos];
+      const m = monthName(a.date);
       if (m !== lastMonth) {
         lastMonth = m;
         ol = el('ol');
         body.insertBefore(el('section', { className: 'month' }, el('h3', { textContent: m }), ol), moreBtn);
       }
-      ol.append(row(a, kind));
+      ol.append(row(a));
     }
-    moreBtn.hidden = pos >= list.length;
-    moreBtn.textContent = `show more (${list.length - pos} left)`;
+    moreBtn.hidden = pos >= archive.length;
+    moreBtn.textContent = `show more (${archive.length - pos} left)`;
+    markCurrent();
   };
   moreBtn.onclick = more;
   body.append(moreBtn);
   more();
+  box.replaceChildren(archive.length === 0 ? el('p', { className: 'empty-note', textContent: 'Nothing here yet.' }) : body);
+}
 
-  $('archive-list').replaceChildren(
-    ...[tabs(), filterBar(all), list.length === 0 && el('p', { className: 'empty-note', textContent: 'Nothing here yet.' }), body].filter(Boolean),
-  );
+// Highlight whatever is open in the strip, the wall and the history list.
+function markCurrent() {
+  for (const n of document.querySelectorAll('[data-open]')) {
+    const on = n.dataset.open === current;
+    n.classList.toggle('current', on);
+    n.closest('.row')?.classList.toggle('current', on);
+    if (on) n.setAttribute('aria-current', 'true');
+    else n.removeAttribute('aria-current');
+  }
 }
 
 const tagsBlock = (t) => hasGenres(t) && el('p', { className: 'tags' }, t.primary && tag(t.primary, 'primary'), ...t.subs.map((s) => tag(s)), ...t.secondary.map((s) => tag(s)));
@@ -182,12 +302,12 @@ const listenLink = (pick) => {
   const bandcamp = pick.links?.bandcamp;
   $('post-body').replaceChildren(...(bandcamp ? [el('a', { className: 'listen', href: bandcamp, target: '_blank', rel: 'noopener', textContent: 'Listen on Bandcamp' })] : []));
 };
-const navLinks = (older, newer, href, attr, label) => {
+const navLinks = (older, newer) => {
   const link = (a, dir) =>
     a
       ? el(
           'a',
-          { href: href(a), className: dir, dataset: { [attr]: label(a) } },
+          { href: `#${hashOf(a)}`, className: dir, dataset: { open: hashOf(a) } },
           el('span', { className: 'dir', textContent: dir === 'older' ? '← older' : 'newer →' }),
           el('span', { className: 'what', textContent: `${a.artist} – ${a.album}` }),
         )
@@ -198,14 +318,14 @@ const navLinks = (older, newer, href, attr, label) => {
 };
 
 function afterRender(pick, t) {
-  renderHistory();
+  markCurrent();
   // Collage: the current cover plus past ones, scattered (collage look only).
   const covers = archive.filter((a) => coversOf(a).length).slice(0, 9);
   $('collage').replaceChildren(
     ...covers.map((a, n) =>
       el(
         'a',
-        { href: `#${a.date}`, className: 'chip', dataset: { date: a.date }, style: `--r:${((n * 37) % 15) - 7}deg;--n:${n}`, tabIndex: -1 },
+        { href: `#${a.date}`, className: 'chip', dataset: { open: a.date }, style: `--r:${((n * 37) % 15) - 7}deg;--n:${n}`, tabIndex: -1 },
         el('img', { src: coversOf(a)[0], alt: '', loading: 'lazy', referrerPolicy: 'no-referrer' }),
       ),
     ),
@@ -216,8 +336,7 @@ function afterRender(pick, t) {
 
 // An album from the catalogue. `list` is the (filtered) list to step through.
 export function renderCatalogueAlbum(pick, list) {
-  current = null;
-  currentKey = pick.key;
+  current = `c/${encodeURIComponent(pick.key)}`;
   const i = list.findIndex((a) => a.key === pick.key);
   const t = tagsOf(pick.genres);
   $('post-head').replaceChildren(
@@ -227,14 +346,13 @@ export function renderCatalogueAlbum(pick, list) {
     tagsBlock(t),
   );
   listenLink(pick);
-  navLinks(i >= 0 ? list[i + 1] : null, i > 0 ? list[i - 1] : null, (a) => keyHref(a.key), 'key', (a) => a.key);
+  navLinks(i >= 0 ? list[i + 1] : null, i > 0 ? list[i - 1] : null);
   afterRender(pick, t);
 }
 
 export function renderPick(pick, all) {
   archive = all;
   current = pick.date ?? null;
-  currentKey = null;
   const i = archive.findIndex((a) => a.date === pick.date);
   const day = i >= 0 ? archive.length - i : null;
   const t = tagsOf(pick.genres ?? archive[i]?.genres);
@@ -251,6 +369,6 @@ export function renderPick(pick, all) {
     tagsBlock(t),
   );
   listenLink(pick);
-  navLinks(i >= 0 ? archive[i + 1] : null, i > 0 ? archive[i - 1] : null, (a) => `#${a.date}`, 'date', (a) => a.date);
+  navLinks(i >= 0 ? archive[i + 1] : null, i > 0 ? archive[i - 1] : null);
   afterRender(pick, t);
 }

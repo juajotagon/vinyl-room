@@ -1,7 +1,8 @@
 // Page logic: load the archive and the day's pick, render the text right away,
 // then load the 3D record (three.js is most of the bundle) in the background.
 import { loadArchive, loadPick, loadCatalogue, loadCatalogueAlbum, loadFallbackAlbum, placeholderAlbum, paletteFrom } from './art.js';
-import { renderPick, renderCatalogueAlbum, catalogueShown, setGenre, setCatalogue } from './ui.js';
+import { renderPick, renderCatalogueAlbum, cratesShown, cratesAll, hashOf, randomHash, setGenre, setCatalogue } from './ui.js';
+import { initGlow, glow } from './glow.js';
 import { setAlbum, setOpen } from './preview.js';
 import './style.css';
 
@@ -13,6 +14,7 @@ let album = placeholderAlbum();
 let archive = [];
 let catalogue = [];
 let showing = null;
+let wasOpen = false;
 
 function show(pick, cat = null) {
   album = pick;
@@ -38,12 +40,11 @@ async function showDate(date) {
   }
 }
 
-// The list older/newer step through while a catalogue album is open: the
-// catalogue as filtered in the history list (the whole catalogue if the album
-// is outside the filter).
+// The list older/newer step through while a crate album is open: the current
+// crate (the whole crates if the album is outside the filter).
 const catList = (key) => {
-  const f = catalogueShown();
-  return f.some((a) => a.key === key) ? f : catalogue;
+  const f = cratesShown();
+  return f.some((a) => a.key === key) ? f : cratesAll();
 };
 
 async function showKey(key) {
@@ -65,14 +66,14 @@ function route() {
   return showDate(h.match(/\d{4}-\d{2}-\d{2}/)?.[0]);
 }
 
-const go = (date) => {
-  if (date) location.hash = date;
+const go = (hash) => {
+  if (hash && location.hash !== `#${hash}`) location.hash = hash;
 };
 const neighbour = (step) => {
   if (showing?.startsWith('c:')) {
     const list = catList(showing.slice(2));
     const a = list[list.findIndex((x) => x.key === showing.slice(2)) + step];
-    return a && `c/${encodeURIComponent(a.key)}`;
+    return a && hashOf(a);
   }
   const i = archive.findIndex((a) => `d:${a.date}` === showing);
   return archive[i + step]?.date; // archive is newest first
@@ -82,20 +83,19 @@ const neighbour = (step) => {
 // Input
 // ---------------------------------------------------------------------------
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-genre], [data-date], [data-key], [data-today], [data-nav], [data-action], [data-scroll], [data-look]');
+  const t = e.target.closest('[data-genre], [data-open], [data-dice], [data-today], [data-nav], [data-action], [data-scroll], [data-look]');
   if (!t) return;
   if (t.dataset.genre !== undefined) {
     e.preventDefault();
     setGenre(t.dataset.genre);
-    document.getElementById('history').scrollIntoView({ behavior: 'smooth' });
-  } else if (t.dataset.date) {
+    document.getElementById('crates').scrollIntoView({ behavior: 'smooth' });
+  } else if (t.dataset.open) {
     e.preventDefault();
-    go(t.dataset.date);
-    document.querySelector('.page').scrollIntoView({ behavior: 'smooth' });
-  } else if (t.dataset.key) {
-    e.preventDefault();
-    go(`c/${encodeURIComponent(t.dataset.key)}`);
-    document.querySelector('.page').scrollIntoView({ behavior: 'smooth' });
+    go(t.dataset.open);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else if (t.dataset.dice !== undefined) {
+    go(randomHash());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   } else if (t.dataset.today !== undefined) {
     e.preventDefault();
     go(archive[0]?.date);
@@ -134,6 +134,7 @@ window.addEventListener('hashchange', route);
 async function boot() {
   [archive, catalogue] = await Promise.all([loadArchive(), loadCatalogue()]);
   setCatalogue(catalogue, archive);
+  initGlow(document.getElementById('crates'));
   if (archive.length || catalogue.length) await route();
   else show(await loadFallbackAlbum()); // fresh checkout: Demon Days
 }
@@ -146,6 +147,8 @@ import('./scene.js').then(({ createScene }) => {
       hintEl.textContent = open ? 'click again to put it away' : 'click the record to open the sleeve';
       document.documentElement.classList.toggle('sleeve-open', open);
       setOpen(open);
+      if (wasOpen && !open) glow('sleeve');
+      wasOpen = open;
     },
   });
   scene.applyArt(album);

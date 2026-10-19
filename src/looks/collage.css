@@ -225,13 +225,15 @@ html[data-look='collage'] {
   transform: rotate(1.5deg);
   box-shadow: 3px 3px 0 var(--ink);
 }
-[data-look='collage'] .archive {
+[data-look='collage'] .crates,
+[data-look='collage'] .week {
   background: var(--card);
   border-radius: 22px;
   padding: 24px 26px 14px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
 }
-[data-look='collage'] .archive h2 {
+[data-look='collage'] .week h2,
+[data-look='collage'] .crates h2 {
   font: 900 clamp(28px, 4vw, 44px) / 1 var(--sans);
   letter-spacing: -0.04em;
   margin-bottom: 16px;
@@ -299,12 +301,100 @@ html[data-look='collage'] {
   border-radius: 6px;
   background: #eee;
 }
+[data-look='collage'] .week {
+  padding: 18px 22px 14px;
+  transform: rotate(-0.6deg);
+}
+[data-look='collage'] .week h2 {
+  font-size: clamp(22px, 3vw, 32px);
+  margin-bottom: 10px;
+}
+[data-look='collage'] .crates-head h2 {
+  margin: 0;
+}
+[data-look='collage'] .wk .cv {
+  padding: 4px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: rotate(-2deg);
+  transition: transform 0.2s ease;
+}
+[data-look='collage'] .week-list li:nth-child(even) .cv {
+  transform: rotate(2deg);
+}
+[data-look='collage'] .wk:hover .cv {
+  transform: rotate(0) scale(1.06);
+}
+[data-look='collage'] .wk .cv img,
+[data-look='collage'] .wk .cv .nocover {
+  aspect-ratio: 1;
+}
+[data-look='collage'] .week-list {
+  padding: 10px 6px 8px;
+}
+[data-look='collage'] .wk time {
+  font-weight: 800;
+  text-transform: uppercase;
+}
+[data-look='collage'] .wk.today time {
+  display: inline-block;
+  padding: 0 8px;
+  background: var(--pop);
+  color: #fff;
+  border-radius: 999px;
+}
+[data-look='collage'] .wk.current .cv,
+[data-look='collage'] .tile.current {
+  outline-color: var(--pop);
+}
+[data-look='collage'] .tile {
+  border: 3px solid var(--card);
+  box-shadow: 2px 3px 0 var(--ink);
+  background: #eee;
+}
+[data-look='collage'] .tile:nth-child(3n + 1):hover {
+  transform: rotate(-2deg) scale(1.05);
+}
+[data-look='collage'] .tile:nth-child(3n + 2):hover {
+  transform: rotate(2deg) scale(1.05);
+}
+[data-look='collage'] .tile:nth-child(3n):hover {
+  transform: rotate(-1deg) scale(1.05);
+  z-index: 2;
+}
+[data-look='collage'] .tile {
+  transition: transform 0.15s ease;
+}
+[data-look='collage'] .tile .mark {
+  background: #ffe14d;
+  color: var(--ink);
+  font-weight: 800;
+}
+[data-look='collage'] .dice {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--pop);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 3px 3px 0 var(--ink);
+  transform: rotate(1.5deg);
+}
+[data-look='collage'] .dice:hover {
+  transform: rotate(0);
+}
+[data-look='collage'] .crates summary {
+  font-weight: 800;
+}
+[data-look='collage'] .crate-count {
+  font-weight: 700;
+}
 [data-look='collage'] .empty-note {
   font-weight: 700;
 }
 
 [data-look='collage'] .page {
-  grid-template-areas: 'head' 'player' 'body' 'collage' 'nav' 'archive';
+  grid-template-areas: 'head' 'player' 'body' 'collage' 'nav' 'week' 'crates';
 }
 @media (min-width: 900px) {
   [data-look='collage'] .page {
@@ -314,8 +404,9 @@ html[data-look='collage'] {
       'player collage'
       'player body'
       'nav nav'
-      'archive archive';
-    grid-template-rows: auto auto 1fr auto auto;
+      'week week'
+      'crates crates';
+    grid-template-rows: auto auto 1fr auto auto auto;
     column-gap: 40px;
     row-gap: 28px;
   }

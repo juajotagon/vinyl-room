@@ -66,7 +66,7 @@ img {
   display: grid;
   gap: 24px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'head' 'player' 'body' 'nav' 'archive';
+  grid-template-areas: 'head' 'player' 'body' 'nav' 'week' 'crates';
   scroll-margin-top: 16px;
 }
 .post-head {
@@ -83,8 +83,13 @@ img {
 .post-nav {
   grid-area: nav;
 }
-.archive {
-  grid-area: archive;
+.week {
+  grid-area: week;
+  min-width: 0;
+}
+.crates {
+  grid-area: crates;
+  min-width: 0;
 }
 .collage {
   display: none;
@@ -164,7 +169,8 @@ img {
   }
 }
 
-.archive h2 {
+.week h2,
+.crates h2 {
   margin: 0 0 10px;
 }
 .post-body:empty {
@@ -221,12 +227,6 @@ img {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-.tabs {
-  margin-bottom: 14px;
-}
-.tabs .chip-f {
-  font-weight: 700;
 }
 .more {
   display: block;
@@ -360,4 +360,275 @@ img {
   display: block;
   width: 100%;
   border: 0;
+}
+
+/* ---- this week -------------------------------------------------------- */
+.week-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+.week-list li {
+  flex: 0 0 auto;
+  width: clamp(92px, 13vw, 128px);
+  scroll-snap-align: start;
+}
+.wk {
+  display: block;
+  text-decoration: none;
+}
+.wk .cv {
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+.wk img,
+.nocover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wk time {
+  display: block;
+  margin-top: 5px;
+  text-align: center;
+  font-size: 12px;
+}
+.wk.today time {
+  font-weight: 800;
+}
+.wk.current .cv,
+.tile.current {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}
+.nocover {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow: hidden;
+}
+.week .nocover {
+  aspect-ratio: 1;
+}
+
+/* ---- dig the crates --------------------------------------------------- */
+.crates {
+  position: relative;
+  isolation: isolate;
+}
+.crates-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.crates-head h2 {
+  margin: 0;
+}
+.dice,
+.crates .chip-f {
+  font: inherit;
+  cursor: pointer;
+}
+.crates .chip-f {
+  min-height: 40px;
+  padding-inline: 14px;
+}
+.crates .frow {
+  gap: 8px;
+}
+.crates .filters {
+  margin-bottom: 10px;
+}
+.crate-count {
+  margin: 0 0 12px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+.wall {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (min-width: 560px) {
+  .wall {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 760px) {
+  .wall {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+@media (min-width: 1000px) {
+  .wall {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) {
+  .wall {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
+.tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  text-decoration: none;
+  background: rgba(128, 128, 128, 0.25);
+}
+.tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+.tile:hover img,
+.tile:focus-visible img {
+  transform: scale(1.06);
+}
+.tile .cap {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 7px 6px;
+  font-size: 11px;
+  line-height: 1.25;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.tile .cap > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tile:hover .cap,
+.tile:focus-visible .cap,
+.tile.plain .cap {
+  opacity: 1;
+}
+.tile.plain {
+  display: grid;
+  align-items: center;
+}
+.tile.plain .cap {
+  position: static;
+  padding: 8px;
+  text-align: center;
+  background: none;
+  color: inherit;
+}
+.tile.plain .cap > * {
+  white-space: normal;
+}
+.tile .mark {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  max-width: calc(100% - 10px);
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 559px) {
+  /* narrow tiles: keep just the star */
+  .tile .mark {
+    font-size: 0;
+    padding: 1px 5px;
+  }
+  .tile .mark::first-letter {
+    font-size: 11px;
+  }
+}
+.crates .more {
+  margin-top: 16px;
+}
+.crates summary {
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.8;
+}
+.crates .archive {
+  margin-top: 22px;
+}
+.crates .archive > div {
+  margin-top: 8px;
+}
+
+/* the RGB border: a rotating conic gradient ring, played a few times only */
+@property --ring {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.crates::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  padding: 3px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--ring), #ff2d55, #ffcc00, #34c759, #00c7be, #0a84ff, #bf5af2, #ff2d55);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  opacity: 0;
+  pointer-events: none;
+}
+.crates.glow::before {
+  opacity: 1;
+  animation:
+    crates-spin 1.2s linear 3,
+    crates-fade 0.7s ease 3.6s forwards;
+}
+@keyframes crates-spin {
+  to {
+    --ring: 360deg;
+  }
+}
+@keyframes crates-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Phones: genre crates scroll sideways instead of stacking 17 rows. */
+@media (max-width: 760px) {
+  #crates .frow {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  #crates .frow > * {
+    flex: none;
+  }
 }

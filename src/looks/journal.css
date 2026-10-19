@@ -149,7 +149,8 @@
 [data-look='journal'] .listen::before {
   content: '→ ';
 }
-[data-look='journal'] .archive h2 {
+[data-look='journal'] .week h2,
+[data-look='journal'] .crates h2 {
   font: 600 13px var(--sans);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -204,6 +205,57 @@
 [data-look='journal'] .archive .nocover {
   border-radius: 3px;
   background: var(--line);
+}
+[data-look='journal'] .crates {
+  padding: 20px 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+[data-look='journal'] .crates-head h2 {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+[data-look='journal'] .crates summary {
+  font: italic 16px var(--serif);
+  color: var(--acc);
+}
+[data-look='journal'] .wk time,
+[data-look='journal'] .crate-count {
+  font: 13px var(--sans);
+  color: var(--dim);
+}
+[data-look='journal'] .wk.today time {
+  color: var(--acc);
+}
+[data-look='journal'] .wk .cv,
+[data-look='journal'] .tile {
+  border-radius: 3px;
+  background: var(--line);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+[data-look='journal'] .wk.current .cv,
+[data-look='journal'] .tile.current {
+  outline-color: var(--acc);
+}
+[data-look='journal'] .dice {
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--ink);
+  background: var(--card);
+  color: var(--ink);
+  font: 600 15px var(--sans);
+}
+[data-look='journal'] .dice:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+[data-look='journal'] .more {
+  color: var(--ink);
+}
+[data-look='journal'] .tile .mark {
+  font-family: var(--sans);
 }
 [data-look='journal'] .empty-note {
   color: var(--dim);

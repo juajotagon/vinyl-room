@@ -24,7 +24,7 @@
       <p class="tagline">one fresh record a day</p>
       <nav class="mainnav" aria-label="Main">
         <a href="#" data-today>today</a>
-        <a href="#history" data-scroll="history">history</a>
+        <a href="#crates" data-scroll="crates">crates</a>
         <a href="#about" data-scroll="about">about</a>
       </nav>
     </header>
@@ -52,9 +52,21 @@
       <div class="post-body" id="post-body"></div>
       <nav class="post-nav" id="post-nav" aria-label="Other days"></nav>
 
-      <section class="archive" id="history" aria-labelledby="history-h">
-        <h2 id="history-h">history</h2>
-        <div id="archive-list"></div>
+      <section class="week" id="week" aria-labelledby="week-h">
+        <h2 id="week-h">this week</h2>
+        <ol class="week-list" id="week-list"></ol>
+      </section>
+
+      <section class="crates" id="crates" aria-labelledby="crates-h">
+        <div class="crates-head">
+          <h2 id="crates-h">dig the crates</h2>
+          <button type="button" class="dice" data-dice>🎲 another one</button>
+        </div>
+        <div id="crates-body"></div>
+        <details class="archive" id="history">
+          <summary>full history</summary>
+          <div id="archive-list"></div>
+        </details>
       </section>
 
       <div class="collage" id="collage" aria-hidden="true"></div>
