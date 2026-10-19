@@ -320,3 +320,21 @@ html[data-look='collage'] {
     row-gap: 28px;
   }
 }
+
+[data-look='collage'] .audio-row {
+  font-weight: 700;
+}
+[data-look='collage'] .audio-mute,
+[data-look='collage'] .audio-bc-btn {
+  padding: 3px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 800;
+}
+[data-look='collage'] .audio-link {
+  color: var(--ink);
+  text-decoration-color: var(--pop);
+  text-decoration-thickness: 2px;
+}

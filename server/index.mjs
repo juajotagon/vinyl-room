@@ -1,5 +1,6 @@
 // Serves the built site and the daily-pick data, and runs the picker once a
-// day, and proxies cover images (GET /cover?u=...). One process, one volume: simple to run as a single k8s Deployment.
+// day, and proxies cover images (GET /cover?u=...)
+// and looks up audio previews (GET /preview?artist=&album=). One process, one volume: simple to run as a single k8s Deployment.
 //
 //   PORT=8080 DIST_DIR=dist DATA_DIR=/data PICK_TIME=06:00 TZ=Europe/Madrid node server/index.mjs
 import { createReadStream } from 'node:fs';
@@ -7,6 +8,7 @@ import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { handleCover } from './cover-proxy.mjs';
+import { handlePreview } from './preview.mjs';
 import { DATA_DIR, pickDay, today } from '../scripts/picker/pick.mjs';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -59,6 +61,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (path === '/cover') return handleCover(req, res);
+  if (path === '/preview') return handlePreview(req, res);
 
   let ok = false;
   if (path.startsWith('/data/')) {

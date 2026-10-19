@@ -2,6 +2,7 @@
 // then load the 3D record (three.js is most of the bundle) in the background.
 import { loadArchive, loadPick, loadCatalogue, loadCatalogueAlbum, loadFallbackAlbum, placeholderAlbum, paletteFrom } from './art.js';
 import { renderPick, renderCatalogueAlbum, catalogueShown, setGenre, setCatalogue } from './ui.js';
+import { setAlbum, setOpen } from './preview.js';
 import './style.css';
 
 const canvasEl = document.getElementById('scene');
@@ -21,6 +22,7 @@ function show(pick, cat = null) {
   // Page colours follow the cover (animated in CSS).
   paletteFrom(pick.front).forEach((c, i) => document.documentElement.style.setProperty(`--g${i + 1}`, c));
   scene?.applyArt(pick);
+  setAlbum(pick);
 }
 
 async function showDate(date) {
@@ -143,6 +145,7 @@ import('./scene.js').then(({ createScene }) => {
     onToggle: (open) => {
       hintEl.textContent = open ? 'click again to put it away' : 'click the record to open the sleeve';
       document.documentElement.classList.toggle('sleeve-open', open);
+      setOpen(open);
     },
   });
   scene.applyArt(album);

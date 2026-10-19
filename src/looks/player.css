@@ -260,3 +260,19 @@
     align-self: end;
   }
 }
+
+[data-look='player'] .audio-row {
+  font: 11px var(--mono);
+  color: var(--dim);
+}
+[data-look='player'] .audio-mute,
+[data-look='player'] .audio-bc-btn {
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #1e2128;
+  color: var(--ink);
+}
+[data-look='player'] .audio-link {
+  color: var(--acc);
+}

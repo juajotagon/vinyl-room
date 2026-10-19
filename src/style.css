@@ -333,3 +333,31 @@ img {
     padding-left: 0;
   }
 }
+
+/* audio preview: attribution + mute under the transport row */
+.audio[hidden] {
+  display: none;
+}
+.audio {
+  margin-top: 8px;
+}
+.audio-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 12px;
+}
+.audio button {
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.audio-bc {
+  margin-top: 8px;
+}
+.audio-bc iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+}
