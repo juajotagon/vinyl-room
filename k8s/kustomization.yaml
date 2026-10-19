@@ -10,5 +10,5 @@ resources:
   - service.yaml
 images:
   - name: vinyl-room
-    newName: vinyl-room # e.g. ghcr.io/<you>/vinyl-room
-    newTag: "0.2.0"
+    newName: ghcr.io/juajotagon/vinyl-room
+    newTag: latest
