@@ -262,18 +262,14 @@
   font: italic 16px var(--serif);
 }
 
-[data-look='journal'] .audio-row {
+[data-look='journal'] .audio-bc {
   font: 13px var(--sans);
   color: var(--dim);
 }
-[data-look='journal'] .audio-mute,
 [data-look='journal'] .audio-bc-btn {
   padding: 2px 10px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: none;
   color: inherit;
-}
-[data-look='journal'] .audio-link {
-  color: var(--acc);
 }

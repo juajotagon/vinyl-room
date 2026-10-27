@@ -3,7 +3,7 @@
 import { loadArchive, loadPick, loadCatalogue, loadCatalogueAlbum, loadFallbackAlbum, placeholderAlbum, paletteFrom } from './art.js';
 import { renderPick, renderCatalogueAlbum, cratesShown, cratesAll, hashOf, randomHash, setGenre, setCatalogue } from './ui.js';
 import { initGlow, glow } from './glow.js';
-import { setAlbum, setOpen } from './preview.js';
+import { setAlbum } from './preview.js';
 import './style.css';
 
 const canvasEl = document.getElementById('scene');
@@ -146,7 +146,6 @@ import('./scene.js').then(({ createScene }) => {
     onToggle: (open) => {
       hintEl.textContent = open ? 'click again to put it away' : 'click the record to open the sleeve';
       document.documentElement.classList.toggle('sleeve-open', open);
-      setOpen(open);
       if (wasOpen && !open) glow('sleeve');
       wasOpen = open;
     },

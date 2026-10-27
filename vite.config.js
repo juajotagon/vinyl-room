@@ -10,7 +10,7 @@ const coverProxy = () => {
   return { name: 'cover-proxy', configureServer: use, configurePreviewServer: use };
 };
 
-// Same /preview audio-preview lookup as the production server.
+// Same /preview Bandcamp lookup as the production server.
 const previewApi = () => {
   const use = (server) => {
     server.middlewares.use((req, res, next) => (req.url?.startsWith('/preview?') || req.url === '/preview' ? handlePreview(req, res) : next()));

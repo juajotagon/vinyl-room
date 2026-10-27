@@ -1,6 +1,7 @@
 // Serves the built site and the daily-pick data, and runs the picker once a
 // day, and proxies cover images (GET /cover?u=...)
-// and looks up audio previews (GET /preview?artist=&album=). One process, one volume: simple to run as a single k8s Deployment.
+// and looks up the Bandcamp player id (GET /preview?artist=&album=&bandcamp=).
+// One process, one volume: simple to run as a single k8s Deployment.
 //
 //   PORT=8080 DIST_DIR=dist DATA_DIR=/data PICK_TIME=06:00 TZ=Europe/Madrid node server/index.mjs
 import { createReadStream } from 'node:fs';

@@ -66,24 +66,15 @@ npm run build
 DATA_DIR=public/data TZ=Europe/Madrid npm start
 ```
 
-## Audio previews
+## Listening
 
-When a visitor opens the sleeve, a 30-second preview of the album plays. It
-never plays on page load. Previews come only from official preview APIs: the
-Apple iTunes Search API first, the Deezer API as a fallback. The server looks
-them up at `GET /preview?artist=&album=&bandcamp=` (`server/preview.mjs`). While
-a preview is available, the page shows the provider's attribution ("Preview
-courtesy of Apple Music", "Listen on Apple Music" or "Listen on Deezer") with a
-link to the album, and a mute button. No audio is taken from Bandcamp pages.
-
-If the album has a Bandcamp page, the server reads only its numeric album id
-(one request, cached). The page then offers a "listen to the full album on
-Bandcamp" button. Only a click inserts Bandcamp's official embedded player, so
-Bandcamp gets no request from the visitor before that.
-
-Apple and Bandcamp results are cached in `DATA_DIR/previews.json` for 30 days
-(misses for 1 day). Deezer preview URLs expire, so they are cached in memory
-for 1 hour at most.
+The only player is Bandcamp's official embed. The page offers a "listen to the
+full album on Bandcamp" button when the album has a Bandcamp page. The button
+loads Bandcamp's player only when the visitor clicks it, so nothing plays on
+its own and Bandcamp gets no request before that. The server looks up the
+numeric album id at `GET /preview?artist=&album=&bandcamp=` (`server/preview.mjs`)
+and caches it in `DATA_DIR/previews.json` for 30 days (misses for 1 day). There
+are no other audio sources.
 
 ## Container and Kubernetes
 

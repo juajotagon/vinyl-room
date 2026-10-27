@@ -21,7 +21,7 @@
 }
 
 :root {
-  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --sans: ui-sans-serif, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --serif: Charter, 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
   transition:
@@ -334,19 +334,12 @@ img {
   }
 }
 
-/* audio preview: attribution + mute under the transport row */
+/* Bandcamp embed: button under the transport row, iframe once clicked */
 .audio[hidden] {
   display: none;
 }
 .audio {
   margin-top: 8px;
-}
-.audio-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-  font-size: 12px;
 }
 .audio button {
   font: inherit;

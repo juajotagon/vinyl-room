@@ -412,10 +412,9 @@ html[data-look='collage'] {
   }
 }
 
-[data-look='collage'] .audio-row {
+[data-look='collage'] .audio-bc {
   font-weight: 700;
 }
-[data-look='collage'] .audio-mute,
 [data-look='collage'] .audio-bc-btn {
   padding: 3px 12px;
   border: 2px solid var(--ink);
@@ -423,9 +422,4 @@ html[data-look='collage'] {
   background: var(--card);
   color: var(--ink);
   font-weight: 800;
-}
-[data-look='collage'] .audio-link {
-  color: var(--ink);
-  text-decoration-color: var(--pop);
-  text-decoration-thickness: 2px;
 }
